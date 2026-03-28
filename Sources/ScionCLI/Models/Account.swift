@@ -1,6 +1,6 @@
 import Foundation
 import GRDB
-import CypraeaCore
+import ScionCore
 
 // MARK: - AccountType
 

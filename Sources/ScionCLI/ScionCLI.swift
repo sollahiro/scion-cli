@@ -2,9 +2,9 @@ import ArgumentParser
 import Foundation
 
 @main
-struct CypraeaCLI: AsyncParsableCommand {
+struct ScionCLI: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "cypraea",
+        commandName: "scion",
         abstract: "電子決済手段（JPYC/USDC）取引管理ツール",
         subcommands: [
             AccountCommand.self,
@@ -14,4 +14,9 @@ struct CypraeaCLI: AsyncParsableCommand {
             HistoryCommand.self,
         ]
     )
+
+    mutating func run() async throws {
+        let shell = InteractiveShell(executablePath: CommandLine.arguments[0])
+        try await shell.run()
+    }
 }

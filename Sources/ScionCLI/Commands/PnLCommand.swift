@@ -10,8 +10,8 @@ struct PnLCommand: AsyncParsableCommand {
     @Option(name: .long, help: "税務申告用年度（総平均法）")
     var tax: Int?
 
-    @Option(name: .long, help: "VaporサーバーURL（環境変数 CYPRAEA_SERVER_URL でも設定可）")
-    var serverURL: String = ProcessInfo.processInfo.environment["CYPRAEA_SERVER_URL"] ?? "http://localhost:8080"
+    @Option(name: .long, help: "VaporサーバーURL（環境変数 SCION_SERVER_URL でも設定可）")
+    var serverURL: String = ProcessInfo.processInfo.environment["SCION_SERVER_URL"] ?? "http://localhost:8080"
 
     mutating func run() async throws {
         let db = try DatabaseManager(path: DatabaseManager.defaultPath())

@@ -14,7 +14,7 @@ final class DatabaseManager: Sendable {
     static func defaultPath() -> String {
         let dir = FileManager.default
             .homeDirectoryForCurrentUser
-            .appendingPathComponent(".cypraea")
+            .appendingPathComponent(".scion")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("db.sqlite").path
     }
