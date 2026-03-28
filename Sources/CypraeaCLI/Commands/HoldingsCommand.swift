@@ -10,6 +10,12 @@ struct HoldingsCommand: AsyncParsableCommand {
     @Option(name: .long, help: "VaporサーバーURL")
     var serverURL: String = "http://localhost:8080"
 
+    @Option(name: .long, help: "Alchemy APIキー（指定するとオンチェーン残高を照合）")
+    var alchemyKey: String?
+
+    @Option(name: .long, help: "Alchemyネットワーク (eth-mainnet / polygon-mainnet)")
+    var alchemyNetwork: String = "polygon-mainnet"
+
     mutating func run() async throws {
         let db = try DatabaseManager(path: DatabaseManager.defaultPath())
         let txRepo = TransactionRepository(db: db)
@@ -31,12 +37,24 @@ struct HoldingsCommand: AsyncParsableCommand {
                 let isLending = account.type == AccountType.lendingPlatform.rawValue
                 let label = isLending ? "\(account.label)（レンディング中）" : account.label
 
-                // wallet の場合はチェーンとアドレスを表示
+                // wallet の場合はチェーンとアドレスを表示（Alchemy 指定時はオンチェーン残高も照合）
                 var addressInfo = ""
                 if account.type == AccountType.wallet.rawValue {
                     let addrs = try acctRepo.fetchDepositAddresses(accountId: accountId)
                     if let addr = addrs.first {
                         addressInfo = "  \(addr.chain)  \(addr.address)"
+
+                        if let key = alchemyKey,
+                           AlchemyService.alchemyNetwork(from: addr.chain) == alchemyNetwork {
+                            let alchemy = AlchemyService(apiKey: key, network: alchemyNetwork)
+                            if let onChain = try? await alchemy.fetchTokenBalances(address: addr.address)[token] {
+                                let diff = onChain - amount
+                                let diffStr = diff == 0
+                                    ? "✓"
+                                    : "差分: \(diff > 0 ? "+" : "")\(formatDecimal(diff))"
+                                addressInfo += "  [オンチェーン: \(formatDecimal(onChain))  \(diffStr)]"
+                            }
+                        }
                     }
                 }
 

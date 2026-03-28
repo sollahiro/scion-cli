@@ -29,6 +29,7 @@ public struct TransactionRecord: Codable, FetchableRecord, PersistableRecord {
     public var usdJpyRate: String?       // USDC取引時のレート
     public var feeJpy: String?           // 手数料・ガス代
     public var notes: String?
+    public var txHash: String?           // オンチェーントランザクションハッシュ（Alchemyインポート時）
 
     public static let databaseTableName = "transactions"
 
@@ -45,5 +46,6 @@ public struct TransactionRecord: Codable, FetchableRecord, PersistableRecord {
         static let usdJpyRate = Column(CodingKeys.usdJpyRate)
         static let feeJpy = Column(CodingKeys.feeJpy)
         static let notes = Column(CodingKeys.notes)
+        static let txHash = Column(CodingKeys.txHash)
     }
 }

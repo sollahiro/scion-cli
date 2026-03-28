@@ -12,6 +12,7 @@ struct CypraeaCLI: AsyncParsableCommand {
             HoldingsCommand.self,
             PnLCommand.self,
             HistoryCommand.self,
+            SyncCommand.self,
         ]
     )
 }

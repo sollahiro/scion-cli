@@ -10,6 +10,13 @@ struct TransactionRepository {
         }
     }
 
+    func fetchTxHashes() throws -> Set<String> {
+        try db.pool.read { db in
+            let hashes = try String.fetchAll(db, sql: "SELECT txHash FROM transactions WHERE txHash IS NOT NULL")
+            return Set(hashes)
+        }
+    }
+
     func fetchAll(token: String? = nil, type: String? = nil, accountId: String? = nil, from: Date? = nil, to: Date? = nil) throws -> [TransactionRecord] {
         try db.pool.read { db in
             var request = TransactionRecord.all()

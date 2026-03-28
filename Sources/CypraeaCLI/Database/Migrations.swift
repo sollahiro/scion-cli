@@ -42,5 +42,11 @@ enum Migrations {
                 t.column("fetchedAt", .datetime).notNull()
             }
         }
+
+        migrator.registerMigration("v2_add_tx_hash") { db in
+            try db.alter(table: "transactions") { t in
+                t.add(column: "txHash", .text)
+            }
+        }
     }
 }
