@@ -1,8 +1,6 @@
 import Foundation
 
 struct InteractiveShell {
-    let executablePath: String
-
     func run() async throws {
         printLogo()
         print("対話モード  ('help' でヘルプ, 'quit' で終了)")
@@ -23,8 +21,8 @@ struct InteractiveShell {
 
             let args = shellSplit(trimmed)
             let process = Process()
-            process.executableURL = URL(fileURLWithPath: executablePath)
-            process.arguments = args
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            process.arguments = ["scion"] + args
             process.standardInput = FileHandle.standardInput
             process.standardOutput = FileHandle.standardOutput
             process.standardError = FileHandle.standardError

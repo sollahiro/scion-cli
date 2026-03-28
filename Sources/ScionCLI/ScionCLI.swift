@@ -16,7 +16,6 @@ struct ScionCLI: AsyncParsableCommand {
     )
 
     mutating func run() async throws {
-        let shell = InteractiveShell(executablePath: CommandLine.arguments[0])
-        try await shell.run()
+        try await InteractiveShell().run()
     }
 }
