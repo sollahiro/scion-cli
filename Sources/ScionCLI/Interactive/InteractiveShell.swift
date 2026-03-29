@@ -27,14 +27,19 @@ struct InteractiveShell {
                 break
             }
 
-            switch idx {
-            case 0: try await runHoldings()
-            case 1: try await runPnL()
-            case 2: try await runHistory()
-            case 3: try await runAddMenu()
-            case 4: try runAccountMenu()
-            case 5: print("終了します。"); return
-            default: break
+            do {
+                switch idx {
+                case 0: try await runHoldings()
+                case 1: try await runPnL()
+                case 2: try await runHistory()
+                case 3: try await runAddMenu()
+                case 4: try await runAccountMenu()
+                case 5: print("終了します。"); return
+                default: break
+                }
+            } catch {
+                print("\nエラー: \(error.localizedDescription)")
+                pauseForRead()
             }
         }
     }
@@ -321,7 +326,7 @@ struct InteractiveShell {
 
     // MARK: - Account Menu
 
-    private func runAccountMenu() throws {
+    private func runAccountMenu() async throws {
         let items = ["アカウント一覧", "アカウント追加", "← 戻る"]
         guard let idx = try ui.select(prompt: "アカウント管理", items: items) else { return }
 
@@ -329,7 +334,7 @@ struct InteractiveShell {
         case 0:
             print()
             var cmd = AccountCommand.List()
-            try cmd.run()
+            try await cmd.run()
             pauseForRead()
         case 1:
             try runAccountAddFlow()
