@@ -119,11 +119,25 @@ struct InteractiveShell {
 
         guard let toId = try selectAccount("受取アカウントを選択", from: accounts) else { return }
 
-        guard
-            let amount = readField("取得量"),
-            let jpy    = readField("支払JPY総額")
-        else { return }
-        let rate  = token == "USDC" ? readField("USD/JPYレート") : nil
+        guard let amount = readField("取得量") else { return }
+
+        let jpy: String
+        let rate: String?
+        if token == "USDC" {
+            guard let resolvedRate = readField("USD/JPYレート") else { return }
+            rate = resolvedRate
+            // JPY総額 = 取得量 × レート（自動計算）
+            if let a = Decimal(string: amount), let r = Decimal(string: resolvedRate) {
+                jpy = formatJpy(a * r)
+            } else {
+                guard let resolvedJpy = readField("支払JPY総額") else { return }
+                jpy = resolvedJpy
+            }
+        } else {
+            // JPYC は 1:1 なので amount がそのまま JPY 総額
+            jpy = amount
+            rate = nil
+        }
         let fee   = readOptionalField("手数料 (JPY)  スキップはEnter")
         let notes = readOptionalField("メモ         スキップはEnter")
 
@@ -151,11 +165,24 @@ struct InteractiveShell {
         let exchanges = accounts.filter { $0.type == AccountType.exchange.rawValue }
         guard let toId = try selectAccount("取引所を選択", from: exchanges) else { return }
 
-        guard
-            let amount = readField("売却量"),
-            let jpy    = readField("受取JPY総額")
-        else { return }
-        let rate  = token == "USDC" ? readField("USD/JPYレート") : nil
+        guard let amount = readField("売却量") else { return }
+
+        let jpy: String
+        let rate: String?
+        if token == "USDC" {
+            guard let resolvedRate = readField("USD/JPYレート") else { return }
+            rate = resolvedRate
+            if let a = Decimal(string: amount), let r = Decimal(string: resolvedRate) {
+                jpy = formatJpy(a * r)
+            } else {
+                guard let resolvedJpy = readField("受取JPY総額") else { return }
+                jpy = resolvedJpy
+            }
+        } else {
+            // JPYC は 1:1 なので amount がそのまま JPY 総額
+            jpy = amount
+            rate = nil
+        }
         let fee   = readOptionalField("手数料 (JPY)  スキップはEnter")
         let notes = readOptionalField("メモ         スキップはEnter")
 
