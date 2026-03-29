@@ -81,6 +81,7 @@ struct InteractiveShell {
             "ウォレット間移動",
             "外部からの受取",
             "外部への送出",
+            "支払い",
             "← 戻る",
         ]
 
@@ -100,7 +101,8 @@ struct InteractiveShell {
         case 5: try runTransferFlow(accounts: accounts, repo: repo, txRepo: txRepo)
         case 6: try runReceiveFlow(accounts: accounts, repo: repo, txRepo: txRepo)
         case 7: try runSendFlow(accounts: accounts, repo: repo, txRepo: txRepo)
-        case 8: return
+        case 8: try runPaymentFlow(accounts: accounts, repo: repo, txRepo: txRepo)
+        case 9: return
         default: break
         }
     }
@@ -115,8 +117,7 @@ struct InteractiveShell {
         let exchanges = accounts.filter { $0.type == AccountType.exchange.rawValue }
         guard let fromId = try selectAccount("取引所を選択", from: exchanges) else { return }
 
-        let wallets = accounts.filter { $0.type == AccountType.wallet.rawValue }
-        guard let toId = try selectAccount("受取アカウントを選択", from: wallets) else { return }
+        guard let toId = try selectAccount("受取アカウントを選択", from: accounts) else { return }
 
         guard
             let amount = readField("取得量"),
@@ -321,6 +322,43 @@ struct InteractiveShell {
         )
         try txRepo.insert(record)
         print("✓ send を記録しました: \(token) \(amount)")
+        pauseForRead()
+    }
+
+    private func runPaymentFlow(
+        accounts: [Account], repo: AccountRepository, txRepo: TransactionRepository
+    ) throws {
+        guard let token  = try selectToken() else { return }
+        guard let fromId = try selectAccount("送出アカウントを選択", from: accounts) else { return }
+
+        guard let amount = readField("支払量") else { return }
+
+        let jpy: String?
+        let rate: String?
+        if token == "USDC" {
+            guard let resolvedJpy = readField("決済時JPY相当額") else { return }
+            guard let resolvedRate = readField("USD/JPYレート") else { return }
+            jpy = resolvedJpy
+            rate = resolvedRate
+        } else {
+            // JPYCは1:1なのでamountをそのまま使う
+            jpy = amount
+            rate = nil
+        }
+
+        let fee   = readOptionalField("手数料 (JPY)  スキップはEnter")
+        let notes = readOptionalField("メモ         スキップはEnter")
+
+        let record = TransactionRecord(
+            id: UUID().uuidString, date: Date(),
+            type: TransactionType.payment.rawValue, token: token,
+            fromAccountId: fromId, toAccountId: nil,
+            amount: amount, receivedAmount: nil,
+            jpyAmount: jpy, usdJpyRate: rate,
+            feeJpy: fee, notes: notes
+        )
+        try txRepo.insert(record)
+        print("✓ payment を記録しました: \(token) \(amount)")
         pauseForRead()
     }
 

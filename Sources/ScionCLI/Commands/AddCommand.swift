@@ -9,6 +9,7 @@ struct AddCommand: AsyncParsableCommand {
             AddBuy.self, AddSell.self,
             AddLend.self, AddUnlend.self, AddInterest.self,
             AddTransfer.self, AddReceive.self, AddSend.self,
+            AddPayment.self,
         ]
     )
 }
@@ -326,6 +327,57 @@ struct AddReceive: AsyncParsableCommand {
         )
         try txRepo.insert(record)
         print("✓ receive を記録しました: \(resolvedToken) \(resolvedAmount)")
+    }
+}
+
+// MARK: - payment
+
+struct AddPayment: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "payment", abstract: "支払いを記録")
+
+    @Option(help: "トークン: JPYC / USDC") var token: String?
+    @Option(help: "送出アカウントラベル") var from: String?
+    @Option(help: "支払量") var amount: String?
+    @Option(help: "決済時JPY相当額（USDCは必須）") var jpy: String?
+    @Option(help: "USD/JPYレート（USDCのみ）") var rate: String?
+    @Option(help: "手数料（JPY）") var fee: String?
+    @Option(help: "メモ") var notes: String?
+
+    mutating func run() async throws {
+        let db = try DatabaseManager(path: DatabaseManager.defaultPath())
+        let repo = AccountRepository(db: db)
+        let txRepo = TransactionRepository(db: db)
+
+        let resolvedToken = try token ?? prompt("トークン (JPYC / USDC): ")
+        let fromId = try resolveAccount(label: from, prompt: "送出アカウントラベル: ", repo: repo)
+        let resolvedAmount = try amount ?? prompt("支払量: ")
+
+        var resolvedJpy: String?
+        var resolvedRate: String?
+        if resolvedToken == "USDC" {
+            resolvedJpy = try jpy ?? prompt("決済時JPY相当額: ")
+            resolvedRate = try rate ?? prompt("USD/JPYレート: ")
+        } else {
+            // JPYCは1:1なのでamountをそのまま使うが、明示指定も許容
+            resolvedJpy = jpy ?? resolvedAmount
+        }
+
+        let record = TransactionRecord(
+            id: UUID().uuidString,
+            date: Date(),
+            type: TransactionType.payment.rawValue,
+            token: resolvedToken,
+            fromAccountId: fromId,
+            toAccountId: nil,
+            amount: resolvedAmount,
+            receivedAmount: nil,
+            jpyAmount: resolvedJpy,
+            usdJpyRate: resolvedRate,
+            feeJpy: fee,
+            notes: notes
+        )
+        try txRepo.insert(record)
+        print("✓ payment を記録しました: \(resolvedToken) \(resolvedAmount)")
     }
 }
 
