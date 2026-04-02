@@ -29,7 +29,7 @@ struct PnLCommand: AsyncParsableCommand {
             let rate = rates[token] ?? 0
             let avgCost = try txRepo.fetchMovingAverageCost(token: token)
             let unrealized = (rate - avgCost) * total
-            let pct = avgCost > 0 ? (unrealized / (avgCost * total) * 100) : 0
+            let pct = avgCost > 0 ? (rate - avgCost) / avgCost * 100 : 0
 
             let sign = unrealized >= 0 ? "+" : ""
             print("  \(token)  \(formatDecimal(total))（うちレンディング中: \(formatDecimal(lendingTotal))）")
@@ -67,11 +67,14 @@ struct PnLCommand: AsyncParsableCommand {
     }
 }
 
+private let _rateFormatter: NumberFormatter = {
+    let f = NumberFormatter()
+    f.numberStyle = .decimal
+    f.maximumFractionDigits = 3
+    f.minimumFractionDigits = 3
+    return f
+}()
+
 func formatRate(_ value: Decimal) -> String {
-    let nsDecimal = value as NSDecimalNumber
-    let formatter = NumberFormatter()
-    formatter.numberStyle = .decimal
-    formatter.maximumFractionDigits = 3
-    formatter.minimumFractionDigits = 3
-    return formatter.string(from: nsDecimal) ?? "\(value)"
+    _rateFormatter.string(from: value as NSDecimalNumber) ?? "\(value)"
 }

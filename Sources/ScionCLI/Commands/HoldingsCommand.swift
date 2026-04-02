@@ -66,19 +66,25 @@ func pad(_ s: String, _ width: Int) -> String {
     return s + String(repeating: " ", count: width - count)
 }
 
+private let _decimalFormatter: NumberFormatter = {
+    let f = NumberFormatter()
+    f.numberStyle = .decimal
+    f.maximumFractionDigits = 4
+    f.minimumFractionDigits = 2
+    return f
+}()
+
+private let _jpyFormatter: NumberFormatter = {
+    let f = NumberFormatter()
+    f.numberStyle = .decimal
+    f.maximumFractionDigits = 0
+    return f
+}()
+
 func formatDecimal(_ value: Decimal) -> String {
-    let nsDecimal = value as NSDecimalNumber
-    let formatter = NumberFormatter()
-    formatter.numberStyle = .decimal
-    formatter.maximumFractionDigits = 4
-    formatter.minimumFractionDigits = 2
-    return formatter.string(from: nsDecimal) ?? "\(value)"
+    _decimalFormatter.string(from: value as NSDecimalNumber) ?? "\(value)"
 }
 
 func formatJpy(_ value: Decimal) -> String {
-    let nsDecimal = value as NSDecimalNumber
-    let formatter = NumberFormatter()
-    formatter.numberStyle = .decimal
-    formatter.maximumFractionDigits = 0
-    return formatter.string(from: nsDecimal) ?? "\(value)"
+    _jpyFormatter.string(from: value as NSDecimalNumber) ?? "\(value)"
 }

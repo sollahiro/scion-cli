@@ -15,7 +15,7 @@ struct RatesService {
     private let cacheTTL: TimeInterval = 3600  // 1時間
 
     func fetchRates() async throws -> [String: Decimal] {
-        // キャッシュ確認
+        // 有効なキャッシュがあればそのまま返す
         if let cached = try cachedRates() {
             return cached
         }
@@ -23,16 +23,28 @@ struct RatesService {
         guard let url = URL(string: "\(serverURL)/rates") else {
             throw RatesError.invalidURL
         }
-        let (data, response) = try await URLSession.shared.data(from: url)
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            throw RatesError.serverError
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                throw RatesError.serverError
+            }
+            let decoded = try JSONDecoder().decode(RatesResponse.self, from: data)
+            guard decoded.USDC > 0, decoded.JPYC > 0 else {
+                throw RatesError.invalidRates
+            }
+            try updateCache(usdc: decoded.USDC, jpyc: decoded.JPYC)
+            return [
+                "USDC": Decimal(decoded.USDC),
+                "JPYC": Decimal(decoded.JPYC),
+            ]
+        } catch {
+            // ネットワーク失敗時は古いキャッシュにフォールバック
+            if let stale = try staleCachedRates() {
+                fputs("警告: レート取得に失敗しました（\(error.localizedDescription)）。前回のキャッシュを使用します。\n", stderr)
+                return stale
+            }
+            throw error
         }
-        let decoded = try JSONDecoder().decode(RatesResponse.self, from: data)
-        try updateCache(usdc: decoded.USDC, jpyc: decoded.JPYC)
-        return [
-            "USDC": Decimal(decoded.USDC),
-            "JPYC": Decimal(decoded.JPYC),
-        ]
     }
 
     private func cachedRates() throws -> [String: Decimal]? {
@@ -41,6 +53,14 @@ struct RatesService {
             guard caches.count == 2 else { return nil }
             let now = Date()
             guard caches.allSatisfy({ now.timeIntervalSince($0.fetchedAt) < cacheTTL }) else { return nil }
+            return Dictionary(uniqueKeysWithValues: caches.map { ($0.token, Decimal($0.rateJpy)) })
+        }
+    }
+
+    private func staleCachedRates() throws -> [String: Decimal]? {
+        try dbManager.pool.read { db in
+            let caches = try RateCache.fetchAll(db)
+            guard caches.count == 2 else { return nil }
             return Dictionary(uniqueKeysWithValues: caches.map { ($0.token, Decimal($0.rateJpy)) })
         }
     }
@@ -61,4 +81,5 @@ private struct RatesResponse: Decodable {
 enum RatesError: Error {
     case invalidURL
     case serverError
+    case invalidRates
 }

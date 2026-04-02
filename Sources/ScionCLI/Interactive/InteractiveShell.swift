@@ -119,18 +119,18 @@ struct InteractiveShell {
 
         guard let toId = try selectAccount("受取アカウントを選択", from: accounts) else { return }
 
-        guard let amount = readField("取得量") else { return }
+        guard let amount = readPositiveDecimalField("取得量") else { return }
 
         let jpy: String
         let rate: String?
         if token == "USDC" {
-            guard let resolvedRate = readField("USD/JPYレート") else { return }
+            guard let resolvedRate = readPositiveDecimalField("USD/JPYレート") else { return }
             rate = resolvedRate
             // JPY総額 = 取得量 × レート（自動計算）
             if let a = Decimal(string: amount), let r = Decimal(string: resolvedRate) {
                 jpy = formatJpy(a * r)
             } else {
-                guard let resolvedJpy = readField("支払JPY総額") else { return }
+                guard let resolvedJpy = readPositiveDecimalField("支払JPY総額") else { return }
                 jpy = resolvedJpy
             }
         } else {
@@ -165,17 +165,17 @@ struct InteractiveShell {
         let exchanges = accounts.filter { $0.type == AccountType.exchange.rawValue }
         guard let toId = try selectAccount("取引所を選択", from: exchanges) else { return }
 
-        guard let amount = readField("売却量") else { return }
+        guard let amount = readPositiveDecimalField("売却量") else { return }
 
         let jpy: String
         let rate: String?
         if token == "USDC" {
-            guard let resolvedRate = readField("USD/JPYレート") else { return }
+            guard let resolvedRate = readPositiveDecimalField("USD/JPYレート") else { return }
             rate = resolvedRate
             if let a = Decimal(string: amount), let r = Decimal(string: resolvedRate) {
                 jpy = formatJpy(a * r)
             } else {
-                guard let resolvedJpy = readField("受取JPY総額") else { return }
+                guard let resolvedJpy = readPositiveDecimalField("受取JPY総額") else { return }
                 jpy = resolvedJpy
             }
         } else {
@@ -210,7 +210,7 @@ struct InteractiveShell {
         let platforms = accounts.filter { $0.type == AccountType.lendingPlatform.rawValue }
         guard let toId = try selectAccount("プラットフォームを選択", from: platforms) else { return }
 
-        guard let amount = readField("預入量") else { return }
+        guard let amount = readPositiveDecimalField("預入量") else { return }
         let fee   = readOptionalField("手数料 (JPY)  スキップはEnter")
         let notes = readOptionalField("メモ         スキップはEnter")
 
@@ -238,7 +238,7 @@ struct InteractiveShell {
         let wallets = accounts.filter { $0.type == AccountType.wallet.rawValue }
         guard let toId = try selectAccount("受取アカウントを選択", from: wallets) else { return }
 
-        guard let amount = readField("返還量") else { return }
+        guard let amount = readPositiveDecimalField("返還量") else { return }
         let fee   = readOptionalField("手数料 (JPY)  スキップはEnter")
         let notes = readOptionalField("メモ         スキップはEnter")
 
@@ -263,8 +263,8 @@ struct InteractiveShell {
         let platforms = accounts.filter { $0.type == AccountType.lendingPlatform.rawValue }
         guard let toId = try selectAccount("プラットフォームを選択", from: platforms) else { return }
 
-        guard let amount = readField("受取量") else { return }
-        let rate  = token == "USDC" ? readField("USD/JPYレート") : nil
+        guard let amount = readPositiveDecimalField("受取量") else { return }
+        let rate  = token == "USDC" ? readPositiveDecimalField("USD/JPYレート") : nil
         let notes = readOptionalField("メモ  スキップはEnter")
 
         let record = TransactionRecord(
@@ -288,7 +288,7 @@ struct InteractiveShell {
         guard let fromId = try selectAccount("送出アカウントを選択", from: accounts) else { return }
         guard let toId   = try selectAccount("受取アカウントを選択", from: accounts) else { return }
 
-        guard let amount = readField("送出量") else { return }
+        guard let amount = readPositiveDecimalField("送出量") else { return }
         let received = readOptionalField("着金量（手数料で減る場合）  スキップはEnter")
         let fee      = readOptionalField("手数料 (JPY)  スキップはEnter")
         let notes    = readOptionalField("メモ         スキップはEnter")
@@ -312,7 +312,7 @@ struct InteractiveShell {
         guard let token = try selectToken() else { return }
         guard let toId  = try selectAccount("受取アカウントを選択", from: accounts) else { return }
 
-        guard let amount = readField("受取量") else { return }
+        guard let amount = readPositiveDecimalField("受取量") else { return }
         let fee   = readOptionalField("手数料 (JPY)  スキップはEnter")
         let notes = readOptionalField("メモ         スキップはEnter")
 
@@ -335,7 +335,7 @@ struct InteractiveShell {
         guard let token  = try selectToken() else { return }
         guard let fromId = try selectAccount("送出アカウントを選択", from: accounts) else { return }
 
-        guard let amount = readField("送出量") else { return }
+        guard let amount = readPositiveDecimalField("送出量") else { return }
         let fee   = readOptionalField("手数料 (JPY)  スキップはEnter")
         let notes = readOptionalField("メモ         スキップはEnter")
 
@@ -358,13 +358,13 @@ struct InteractiveShell {
         guard let token  = try selectToken() else { return }
         guard let fromId = try selectAccount("送出アカウントを選択", from: accounts) else { return }
 
-        guard let amount = readField("支払量") else { return }
+        guard let amount = readPositiveDecimalField("支払量") else { return }
 
         let jpy: String?
         let rate: String?
         if token == "USDC" {
-            guard let resolvedJpy = readField("決済時JPY相当額") else { return }
-            guard let resolvedRate = readField("USD/JPYレート") else { return }
+            guard let resolvedJpy = readPositiveDecimalField("決済時JPY相当額") else { return }
+            guard let resolvedRate = readPositiveDecimalField("USD/JPYレート") else { return }
             jpy = resolvedJpy
             rate = resolvedRate
         } else {
@@ -472,6 +472,18 @@ struct InteractiveShell {
         fflush(stdout)
         let value = readLine() ?? ""
         return value.isEmpty ? nil : value
+    }
+
+    /// Prompt for a required positive decimal field. Loops until valid input or empty (cancel).
+    private func readPositiveDecimalField(_ label: String) -> String? {
+        while true {
+            print("\(label): ", terminator: "")
+            fflush(stdout)
+            let value = readLine() ?? ""
+            if value.isEmpty { return nil }
+            if let d = Decimal(string: value), d > 0 { return value }
+            print("  ※ 正の数値を入力してください（キャンセルはEnterのみ）")
+        }
     }
 
     /// Prompt for an optional text field. Returns nil if user presses Enter without input.

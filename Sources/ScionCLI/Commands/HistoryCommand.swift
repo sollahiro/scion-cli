@@ -26,10 +26,17 @@ struct HistoryCommand: AsyncParsableCommand {
         var toDate: Date? = to.flatMap { dateFormatter.date(from: $0) }
 
         if let year {
-            var cal = Calendar.current
-            cal.timeZone = TimeZone.current
-            fromDate = cal.date(from: DateComponents(year: year, month: 1, day: 1))
-            toDate = cal.date(from: DateComponents(year: year, month: 12, day: 31))
+            var cal = Calendar(identifier: .gregorian)
+            cal.timeZone = TimeZone(identifier: "Asia/Tokyo") ?? .current
+            guard
+                let start = cal.date(from: DateComponents(year: year, month: 1, day: 1, hour: 0, minute: 0, second: 0)),
+                let endDay = cal.date(from: DateComponents(year: year, month: 12, day: 31)),
+                let end = cal.date(bySettingHour: 23, minute: 59, second: 59, of: endDay)
+            else {
+                throw ValidationError("年度 \(year) の日付範囲が計算できませんでした")
+            }
+            fromDate = start
+            toDate = end
         }
 
         var accountId: String? = nil

@@ -74,7 +74,8 @@ struct TransactionRepository {
         var sellRecords = try fetchAll(token: token, type: TransactionType.sell.rawValue)
 
         if let year {
-            let calendar = Calendar.current
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(identifier: "Asia/Tokyo") ?? .current
             buyRecords = buyRecords.filter { calendar.component(.year, from: $0.date) == year }
             sellRecords = sellRecords.filter { calendar.component(.year, from: $0.date) == year }
         }
@@ -99,7 +100,9 @@ struct TransactionRepository {
     func fetchLendingIncome(token: String, year: Int? = nil) throws -> Decimal {
         var records = try fetchAll(token: token, type: TransactionType.interest.rawValue)
         if let year {
-            records = records.filter { Calendar.current.component(.year, from: $0.date) == year }
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(identifier: "Asia/Tokyo") ?? .current
+            records = records.filter { calendar.component(.year, from: $0.date) == year }
         }
         return records.compactMap { record -> Decimal? in
             let amount = Decimal(string: record.amount) ?? 0

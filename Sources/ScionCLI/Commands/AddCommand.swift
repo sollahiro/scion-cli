@@ -16,10 +16,26 @@ struct AddCommand: AsyncParsableCommand {
 
 // MARK: - 共通オプション
 
+private let validTokens = ["JPYC", "USDC"]
+
+private func validateToken(_ token: String) throws -> String {
+    guard validTokens.contains(token) else {
+        throw ValidationError("無効なトークンです: \(token)。JPYC または USDC を指定してください")
+    }
+    return token
+}
+
+private func validatePositiveDecimal(_ value: String, fieldName: String) throws -> String {
+    guard let d = Decimal(string: value), d > 0 else {
+        throw ValidationError("\(fieldName)は正の数値を入力してください: \(value)")
+    }
+    return value
+}
+
 private func resolveAccount(label: String?, prompt message: String, repo: AccountRepository) throws -> String {
     let resolvedLabel = try label ?? prompt(message)
     let accounts = try repo.fetchAll()
-    guard let account = accounts.first(where: { $0.label == resolvedLabel }) else {
+    guard let account = accounts.first(where: { $0.label.lowercased() == resolvedLabel.lowercased() }) else {
         throw ValidationError("アカウントが見つかりません: \(resolvedLabel)")
     }
     return account.id
@@ -44,15 +60,18 @@ struct AddBuy: AsyncParsableCommand {
         let repo = AccountRepository(db: db)
         let txRepo = TransactionRepository(db: db)
 
-        let resolvedToken = try token ?? prompt("トークン (JPYC / USDC): ")
+        let resolvedToken = try validateToken(token ?? prompt("トークン (JPYC / USDC): "))
         let fromId = try resolveAccount(label: exchange, prompt: "取引所ラベル: ", repo: repo)
         let toId = try resolveAccount(label: to, prompt: "受取アカウントラベル: ", repo: repo)
-        let resolvedAmount = try amount ?? prompt("取得量: ")
-        let resolvedJpy = try jpy ?? prompt("支払JPY総額: ")
+        let resolvedAmount = try validatePositiveDecimal(amount ?? prompt("取得量: "), fieldName: "取得量")
+        let resolvedJpy = try validatePositiveDecimal(jpy ?? prompt("支払JPY総額: "), fieldName: "支払JPY総額")
 
         var resolvedRate: String? = rate
         if resolvedToken == "USDC" && resolvedRate == nil {
             resolvedRate = try prompt("USD/JPYレート: ")
+        }
+        if let r = resolvedRate {
+            resolvedRate = try validatePositiveDecimal(r, fieldName: "USD/JPYレート")
         }
 
         let record = TransactionRecord(
@@ -93,15 +112,18 @@ struct AddSell: AsyncParsableCommand {
         let repo = AccountRepository(db: db)
         let txRepo = TransactionRepository(db: db)
 
-        let resolvedToken = try token ?? prompt("トークン (JPYC / USDC): ")
+        let resolvedToken = try validateToken(token ?? prompt("トークン (JPYC / USDC): "))
         let fromId = try resolveAccount(label: from, prompt: "送出アカウントラベル: ", repo: repo)
         let toId = try resolveAccount(label: exchange, prompt: "取引所ラベル: ", repo: repo)
-        let resolvedAmount = try amount ?? prompt("売却量: ")
-        let resolvedJpy = try jpy ?? prompt("受取JPY総額: ")
+        let resolvedAmount = try validatePositiveDecimal(amount ?? prompt("売却量: "), fieldName: "売却量")
+        let resolvedJpy = try validatePositiveDecimal(jpy ?? prompt("受取JPY総額: "), fieldName: "受取JPY総額")
 
         var resolvedRate: String? = rate
         if resolvedToken == "USDC" && resolvedRate == nil {
             resolvedRate = try prompt("USD/JPYレート: ")
+        }
+        if let r = resolvedRate {
+            resolvedRate = try validatePositiveDecimal(r, fieldName: "USD/JPYレート")
         }
 
         let record = TransactionRecord(
@@ -140,10 +162,10 @@ struct AddLend: AsyncParsableCommand {
         let repo = AccountRepository(db: db)
         let txRepo = TransactionRepository(db: db)
 
-        let resolvedToken = try token ?? prompt("トークン (JPYC / USDC): ")
+        let resolvedToken = try validateToken(token ?? prompt("トークン (JPYC / USDC): "))
         let fromId = try resolveAccount(label: from, prompt: "送出アカウントラベル: ", repo: repo)
         let toId = try resolveAccount(label: platform, prompt: "プラットフォームラベル: ", repo: repo)
-        let resolvedAmount = try amount ?? prompt("預入量: ")
+        let resolvedAmount = try validatePositiveDecimal(amount ?? prompt("預入量: "), fieldName: "預入量")
 
         let record = TransactionRecord(
             id: UUID().uuidString,
@@ -181,10 +203,10 @@ struct AddUnlend: AsyncParsableCommand {
         let repo = AccountRepository(db: db)
         let txRepo = TransactionRepository(db: db)
 
-        let resolvedToken = try token ?? prompt("トークン (JPYC / USDC): ")
+        let resolvedToken = try validateToken(token ?? prompt("トークン (JPYC / USDC): "))
         let fromId = try resolveAccount(label: platform, prompt: "プラットフォームラベル: ", repo: repo)
         let toId = try resolveAccount(label: to, prompt: "受取アカウントラベル: ", repo: repo)
-        let resolvedAmount = try amount ?? prompt("返還量: ")
+        let resolvedAmount = try validatePositiveDecimal(amount ?? prompt("返還量: "), fieldName: "返還量")
 
         let record = TransactionRecord(
             id: UUID().uuidString,
@@ -221,13 +243,16 @@ struct AddInterest: AsyncParsableCommand {
         let repo = AccountRepository(db: db)
         let txRepo = TransactionRepository(db: db)
 
-        let resolvedToken = try token ?? prompt("トークン (JPYC / USDC): ")
+        let resolvedToken = try validateToken(token ?? prompt("トークン (JPYC / USDC): "))
         let toId = try resolveAccount(label: platform, prompt: "プラットフォームラベル: ", repo: repo)
-        let resolvedAmount = try amount ?? prompt("受取量: ")
+        let resolvedAmount = try validatePositiveDecimal(amount ?? prompt("受取量: "), fieldName: "受取量")
 
         var resolvedRate: String? = rate
         if resolvedToken == "USDC" && resolvedRate == nil {
             resolvedRate = try prompt("USD/JPYレート: ")
+        }
+        if let r = resolvedRate {
+            resolvedRate = try validatePositiveDecimal(r, fieldName: "USD/JPYレート")
         }
 
         let record = TransactionRecord(
@@ -267,10 +292,10 @@ struct AddTransfer: AsyncParsableCommand {
         let repo = AccountRepository(db: db)
         let txRepo = TransactionRepository(db: db)
 
-        let resolvedToken = try token ?? prompt("トークン (JPYC / USDC): ")
+        let resolvedToken = try validateToken(token ?? prompt("トークン (JPYC / USDC): "))
         let fromId = try resolveAccount(label: from, prompt: "送出アカウントラベル: ", repo: repo)
         let toId = try resolveAccount(label: to, prompt: "受取アカウントラベル: ", repo: repo)
-        let resolvedAmount = try amount ?? prompt("送出量: ")
+        let resolvedAmount = try validatePositiveDecimal(amount ?? prompt("送出量: "), fieldName: "送出量")
 
         let record = TransactionRecord(
             id: UUID().uuidString,
@@ -307,9 +332,9 @@ struct AddReceive: AsyncParsableCommand {
         let repo = AccountRepository(db: db)
         let txRepo = TransactionRepository(db: db)
 
-        let resolvedToken = try token ?? prompt("トークン (JPYC / USDC): ")
+        let resolvedToken = try validateToken(token ?? prompt("トークン (JPYC / USDC): "))
         let toId = try resolveAccount(label: to, prompt: "受取アカウントラベル: ", repo: repo)
-        let resolvedAmount = try amount ?? prompt("受取量: ")
+        let resolvedAmount = try validatePositiveDecimal(amount ?? prompt("受取量: "), fieldName: "受取量")
 
         let record = TransactionRecord(
             id: UUID().uuidString,
@@ -348,15 +373,15 @@ struct AddPayment: AsyncParsableCommand {
         let repo = AccountRepository(db: db)
         let txRepo = TransactionRepository(db: db)
 
-        let resolvedToken = try token ?? prompt("トークン (JPYC / USDC): ")
+        let resolvedToken = try validateToken(token ?? prompt("トークン (JPYC / USDC): "))
         let fromId = try resolveAccount(label: from, prompt: "送出アカウントラベル: ", repo: repo)
-        let resolvedAmount = try amount ?? prompt("支払量: ")
+        let resolvedAmount = try validatePositiveDecimal(amount ?? prompt("支払量: "), fieldName: "支払量")
 
         var resolvedJpy: String?
         var resolvedRate: String?
         if resolvedToken == "USDC" {
-            resolvedJpy = try jpy ?? prompt("決済時JPY相当額: ")
-            resolvedRate = try rate ?? prompt("USD/JPYレート: ")
+            resolvedJpy = try validatePositiveDecimal(jpy ?? prompt("決済時JPY相当額: "), fieldName: "決済時JPY相当額")
+            resolvedRate = try validatePositiveDecimal(rate ?? prompt("USD/JPYレート: "), fieldName: "USD/JPYレート")
         } else {
             // JPYCは1:1なのでamountをそのまま使うが、明示指定も許容
             resolvedJpy = jpy ?? resolvedAmount
@@ -397,9 +422,9 @@ struct AddSend: AsyncParsableCommand {
         let repo = AccountRepository(db: db)
         let txRepo = TransactionRepository(db: db)
 
-        let resolvedToken = try token ?? prompt("トークン (JPYC / USDC): ")
+        let resolvedToken = try validateToken(token ?? prompt("トークン (JPYC / USDC): "))
         let fromId = try resolveAccount(label: from, prompt: "送出アカウントラベル: ", repo: repo)
-        let resolvedAmount = try amount ?? prompt("送出量: ")
+        let resolvedAmount = try validatePositiveDecimal(amount ?? prompt("送出量: "), fieldName: "送出量")
 
         let record = TransactionRecord(
             id: UUID().uuidString,
