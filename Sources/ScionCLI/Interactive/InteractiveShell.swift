@@ -138,8 +138,9 @@ struct InteractiveShell {
             jpy = amount
             rate = nil
         }
-        let fee   = readOptionalField("手数料 (JPY)  スキップはEnter")
-        let notes = readOptionalField("メモ         スキップはEnter")
+        let executionRate = readOptionalField("約定レート      スキップはEnter")
+        let fee           = readOptionalField("手数料 (JPY)    スキップはEnter")
+        let notes         = readOptionalField("メモ           スキップはEnter")
 
         let record = TransactionRecord(
             id: UUID().uuidString, date: Date(),
@@ -147,7 +148,10 @@ struct InteractiveShell {
             fromAccountId: fromId, toAccountId: toId,
             amount: amount, receivedAmount: nil,
             jpyAmount: jpy, usdJpyRate: rate,
-            feeJpy: fee, notes: notes
+            feeJpy: fee, notes: notes,
+            executionRate: executionRate,
+            lendingRate: nil, lendingPeriod: nil, lendingStartDate: nil,
+            withdrawalId: nil
         )
         try txRepo.insert(record)
         print("✓ buy を記録しました: \(token) \(amount)")
@@ -183,8 +187,9 @@ struct InteractiveShell {
             jpy = amount
             rate = nil
         }
-        let fee   = readOptionalField("手数料 (JPY)  スキップはEnter")
-        let notes = readOptionalField("メモ         スキップはEnter")
+        let executionRate = readOptionalField("約定レート      スキップはEnter")
+        let fee           = readOptionalField("手数料 (JPY)    スキップはEnter")
+        let notes         = readOptionalField("メモ           スキップはEnter")
 
         let record = TransactionRecord(
             id: UUID().uuidString, date: Date(),
@@ -192,7 +197,10 @@ struct InteractiveShell {
             fromAccountId: fromId, toAccountId: toId,
             amount: amount, receivedAmount: nil,
             jpyAmount: jpy, usdJpyRate: rate,
-            feeJpy: fee, notes: notes
+            feeJpy: fee, notes: notes,
+            executionRate: executionRate,
+            lendingRate: nil, lendingPeriod: nil, lendingStartDate: nil,
+            withdrawalId: nil
         )
         try txRepo.insert(record)
         print("✓ sell を記録しました: \(token) \(amount)")
@@ -211,8 +219,11 @@ struct InteractiveShell {
         guard let toId = try selectAccount("プラットフォームを選択", from: platforms) else { return }
 
         guard let amount = readPositiveDecimalField("預入量") else { return }
-        let fee   = readOptionalField("手数料 (JPY)  スキップはEnter")
-        let notes = readOptionalField("メモ         スキップはEnter")
+        let lendingRate      = readOptionalField("年率 (%)        スキップはEnter")
+        let lendingPeriod    = readOptionalField("貸出期間 (例: 30日)  スキップはEnter")
+        let lendingStartDate = readDateField("貸出開始日 (YYYY-MM-DD)  スキップはEnter")
+        let fee              = readOptionalField("手数料 (JPY)    スキップはEnter")
+        let notes            = readOptionalField("メモ           スキップはEnter")
 
         let record = TransactionRecord(
             id: UUID().uuidString, date: Date(),
@@ -220,7 +231,12 @@ struct InteractiveShell {
             fromAccountId: fromId, toAccountId: toId,
             amount: amount, receivedAmount: nil,
             jpyAmount: nil, usdJpyRate: nil,
-            feeJpy: fee, notes: notes
+            feeJpy: fee, notes: notes,
+            executionRate: nil,
+            lendingRate: lendingRate,
+            lendingPeriod: lendingPeriod,
+            lendingStartDate: lendingStartDate,
+            withdrawalId: nil
         )
         try txRepo.insert(record)
         print("✓ lend を記録しました: \(token) \(amount)")
@@ -248,7 +264,10 @@ struct InteractiveShell {
             fromAccountId: fromId, toAccountId: toId,
             amount: amount, receivedAmount: nil,
             jpyAmount: nil, usdJpyRate: nil,
-            feeJpy: fee, notes: notes
+            feeJpy: fee, notes: notes,
+            executionRate: nil,
+            lendingRate: nil, lendingPeriod: nil, lendingStartDate: nil,
+            withdrawalId: nil
         )
         try txRepo.insert(record)
         print("✓ unlend を記録しました: \(token) \(amount)")
@@ -273,7 +292,10 @@ struct InteractiveShell {
             fromAccountId: nil, toAccountId: toId,
             amount: amount, receivedAmount: nil,
             jpyAmount: nil, usdJpyRate: rate,
-            feeJpy: nil, notes: notes
+            feeJpy: nil, notes: notes,
+            executionRate: nil,
+            lendingRate: nil, lendingPeriod: nil, lendingStartDate: nil,
+            withdrawalId: nil
         )
         try txRepo.insert(record)
         print("✓ interest を記録しました: \(token) \(amount)")
@@ -289,9 +311,10 @@ struct InteractiveShell {
         guard let toId   = try selectAccount("受取アカウントを選択", from: accounts) else { return }
 
         guard let amount = readPositiveDecimalField("送出量") else { return }
-        let received = readOptionalField("着金量（手数料で減る場合）  スキップはEnter")
-        let fee      = readOptionalField("手数料 (JPY)  スキップはEnter")
-        let notes    = readOptionalField("メモ         スキップはEnter")
+        let received     = readOptionalField("着金量（手数料で減る場合）  スキップはEnter")
+        let withdrawalId = readOptionalField("出庫ID         スキップはEnter")
+        let fee          = readOptionalField("手数料 (JPY)    スキップはEnter")
+        let notes        = readOptionalField("メモ           スキップはEnter")
 
         let record = TransactionRecord(
             id: UUID().uuidString, date: Date(),
@@ -299,7 +322,10 @@ struct InteractiveShell {
             fromAccountId: fromId, toAccountId: toId,
             amount: amount, receivedAmount: received,
             jpyAmount: nil, usdJpyRate: nil,
-            feeJpy: fee, notes: notes
+            feeJpy: fee, notes: notes,
+            executionRate: nil,
+            lendingRate: nil, lendingPeriod: nil, lendingStartDate: nil,
+            withdrawalId: withdrawalId
         )
         try txRepo.insert(record)
         print("✓ transfer を記録しました: \(token) \(amount)")
@@ -322,7 +348,10 @@ struct InteractiveShell {
             fromAccountId: nil, toAccountId: toId,
             amount: amount, receivedAmount: nil,
             jpyAmount: nil, usdJpyRate: nil,
-            feeJpy: fee, notes: notes
+            feeJpy: fee, notes: notes,
+            executionRate: nil,
+            lendingRate: nil, lendingPeriod: nil, lendingStartDate: nil,
+            withdrawalId: nil
         )
         try txRepo.insert(record)
         print("✓ receive を記録しました: \(token) \(amount)")
@@ -345,7 +374,10 @@ struct InteractiveShell {
             fromAccountId: fromId, toAccountId: nil,
             amount: amount, receivedAmount: nil,
             jpyAmount: nil, usdJpyRate: nil,
-            feeJpy: fee, notes: notes
+            feeJpy: fee, notes: notes,
+            executionRate: nil,
+            lendingRate: nil, lendingPeriod: nil, lendingStartDate: nil,
+            withdrawalId: nil
         )
         try txRepo.insert(record)
         print("✓ send を記録しました: \(token) \(amount)")
@@ -382,7 +414,10 @@ struct InteractiveShell {
             fromAccountId: fromId, toAccountId: nil,
             amount: amount, receivedAmount: nil,
             jpyAmount: jpy, usdJpyRate: rate,
-            feeJpy: fee, notes: notes
+            feeJpy: fee, notes: notes,
+            executionRate: nil,
+            lendingRate: nil, lendingPeriod: nil, lendingStartDate: nil,
+            withdrawalId: nil
         )
         try txRepo.insert(record)
         print("✓ payment を記録しました: \(token) \(amount)")
@@ -483,6 +518,20 @@ struct InteractiveShell {
             if value.isEmpty { return nil }
             if let d = Decimal(string: value), d > 0 { return value }
             print("  ※ 正の数値を入力してください（キャンセルはEnterのみ）")
+        }
+    }
+
+    /// Prompt for an optional date field (YYYY-MM-DD). Loops until valid or empty (skip).
+    private func readDateField(_ label: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        while true {
+            print("\(label): ", terminator: "")
+            fflush(stdout)
+            let value = readLine() ?? ""
+            if value.isEmpty { return nil }
+            if let date = formatter.date(from: value) { return date }
+            print("  ※ YYYY-MM-DD 形式で入力してください（スキップはEnterのみ）")
         }
     }
 

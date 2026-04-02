@@ -42,5 +42,15 @@ enum Migrations {
                 t.column("fetchedAt", .datetime).notNull()
             }
         }
+
+        migrator.registerMigration("v2_new_fields") { db in
+            try db.alter(table: "transactions") { t in
+                t.add(column: "executionRate", .text)
+                t.add(column: "lendingRate", .text)
+                t.add(column: "lendingPeriod", .text)
+                t.add(column: "lendingStartDate", .datetime)
+                t.add(column: "withdrawalId", .text)
+            }
+        }
     }
 }

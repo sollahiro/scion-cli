@@ -54,6 +54,7 @@ struct AddBuy: AsyncParsableCommand {
     @Option(help: "USD/JPYレート（USDCのみ）") var rate: String?
     @Option(help: "手数料（JPY）") var fee: String?
     @Option(help: "メモ") var notes: String?
+    @Option(help: "約定レート") var executionRate: String?
 
     mutating func run() async throws {
         let db = try DatabaseManager(path: DatabaseManager.defaultPath())
@@ -74,6 +75,8 @@ struct AddBuy: AsyncParsableCommand {
             resolvedRate = try validatePositiveDecimal(r, fieldName: "USD/JPYレート")
         }
 
+        let resolvedExecutionRate = try executionRate.map { try validatePositiveDecimal($0, fieldName: "約定レート") }
+
         let record = TransactionRecord(
             id: UUID().uuidString,
             date: Date(),
@@ -86,7 +89,12 @@ struct AddBuy: AsyncParsableCommand {
             jpyAmount: resolvedJpy,
             usdJpyRate: resolvedRate,
             feeJpy: fee,
-            notes: notes
+            notes: notes,
+            executionRate: resolvedExecutionRate,
+            lendingRate: nil,
+            lendingPeriod: nil,
+            lendingStartDate: nil,
+            withdrawalId: nil
         )
         try txRepo.insert(record)
         print("✓ buy を記録しました: \(resolvedToken) \(resolvedAmount)")
@@ -106,6 +114,7 @@ struct AddSell: AsyncParsableCommand {
     @Option(help: "USD/JPYレート（USDCのみ）") var rate: String?
     @Option(help: "手数料（JPY）") var fee: String?
     @Option(help: "メモ") var notes: String?
+    @Option(help: "約定レート") var executionRate: String?
 
     mutating func run() async throws {
         let db = try DatabaseManager(path: DatabaseManager.defaultPath())
@@ -126,6 +135,8 @@ struct AddSell: AsyncParsableCommand {
             resolvedRate = try validatePositiveDecimal(r, fieldName: "USD/JPYレート")
         }
 
+        let resolvedExecutionRate = try executionRate.map { try validatePositiveDecimal($0, fieldName: "約定レート") }
+
         let record = TransactionRecord(
             id: UUID().uuidString,
             date: Date(),
@@ -138,7 +149,12 @@ struct AddSell: AsyncParsableCommand {
             jpyAmount: resolvedJpy,
             usdJpyRate: resolvedRate,
             feeJpy: fee,
-            notes: notes
+            notes: notes,
+            executionRate: resolvedExecutionRate,
+            lendingRate: nil,
+            lendingPeriod: nil,
+            lendingStartDate: nil,
+            withdrawalId: nil
         )
         try txRepo.insert(record)
         print("✓ sell を記録しました: \(resolvedToken) \(resolvedAmount)")
@@ -156,6 +172,9 @@ struct AddLend: AsyncParsableCommand {
     @Option(help: "預入量") var amount: String?
     @Option(help: "手数料（JPY）") var fee: String?
     @Option(help: "メモ") var notes: String?
+    @Option(help: "年率 (%)") var lendingRate: String?
+    @Option(help: "貸出期間 (例: 30日)") var lendingPeriod: String?
+    @Option(help: "貸出開始日 (YYYY-MM-DD)") var lendingStartDate: String?
 
     mutating func run() async throws {
         let db = try DatabaseManager(path: DatabaseManager.defaultPath())
@@ -166,6 +185,20 @@ struct AddLend: AsyncParsableCommand {
         let fromId = try resolveAccount(label: from, prompt: "送出アカウントラベル: ", repo: repo)
         let toId = try resolveAccount(label: platform, prompt: "プラットフォームラベル: ", repo: repo)
         let resolvedAmount = try validatePositiveDecimal(amount ?? prompt("預入量: "), fieldName: "預入量")
+
+        let resolvedLendingRate = try lendingRate.map { try validatePositiveDecimal($0, fieldName: "年率") }
+
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let resolvedLendingStartDate: Date?
+        if let ds = lendingStartDate {
+            guard let d = dateFormatter.date(from: ds) else {
+                throw ValidationError("貸出開始日の形式が不正です: \(ds)。YYYY-MM-DD 形式で入力してください")
+            }
+            resolvedLendingStartDate = d
+        } else {
+            resolvedLendingStartDate = nil
+        }
 
         let record = TransactionRecord(
             id: UUID().uuidString,
@@ -179,7 +212,12 @@ struct AddLend: AsyncParsableCommand {
             jpyAmount: nil,
             usdJpyRate: nil,
             feeJpy: fee,
-            notes: notes
+            notes: notes,
+            executionRate: nil,
+            lendingRate: resolvedLendingRate,
+            lendingPeriod: lendingPeriod,
+            lendingStartDate: resolvedLendingStartDate,
+            withdrawalId: nil
         )
         try txRepo.insert(record)
         print("✓ lend を記録しました: \(resolvedToken) \(resolvedAmount)")
@@ -220,7 +258,12 @@ struct AddUnlend: AsyncParsableCommand {
             jpyAmount: nil,
             usdJpyRate: nil,
             feeJpy: fee,
-            notes: notes
+            notes: notes,
+            executionRate: nil,
+            lendingRate: nil,
+            lendingPeriod: nil,
+            lendingStartDate: nil,
+            withdrawalId: nil
         )
         try txRepo.insert(record)
         print("✓ unlend を記録しました: \(resolvedToken) \(resolvedAmount)")
@@ -267,7 +310,12 @@ struct AddInterest: AsyncParsableCommand {
             jpyAmount: nil,
             usdJpyRate: resolvedRate,
             feeJpy: nil,
-            notes: notes
+            notes: notes,
+            executionRate: nil,
+            lendingRate: nil,
+            lendingPeriod: nil,
+            lendingStartDate: nil,
+            withdrawalId: nil
         )
         try txRepo.insert(record)
         print("✓ interest を記録しました: \(resolvedToken) \(resolvedAmount)")
@@ -286,6 +334,7 @@ struct AddTransfer: AsyncParsableCommand {
     @Option(help: "着金量（手数料で減る場合）") var received: String?
     @Option(help: "手数料（JPY）") var fee: String?
     @Option(help: "メモ") var notes: String?
+    @Option(help: "出庫ID") var withdrawalId: String?
 
     mutating func run() async throws {
         let db = try DatabaseManager(path: DatabaseManager.defaultPath())
@@ -309,7 +358,12 @@ struct AddTransfer: AsyncParsableCommand {
             jpyAmount: nil,
             usdJpyRate: nil,
             feeJpy: fee,
-            notes: notes
+            notes: notes,
+            executionRate: nil,
+            lendingRate: nil,
+            lendingPeriod: nil,
+            lendingStartDate: nil,
+            withdrawalId: withdrawalId
         )
         try txRepo.insert(record)
         print("✓ transfer を記録しました: \(resolvedToken) \(resolvedAmount)")
@@ -348,7 +402,12 @@ struct AddReceive: AsyncParsableCommand {
             jpyAmount: nil,
             usdJpyRate: nil,
             feeJpy: fee,
-            notes: notes
+            notes: notes,
+            executionRate: nil,
+            lendingRate: nil,
+            lendingPeriod: nil,
+            lendingStartDate: nil,
+            withdrawalId: nil
         )
         try txRepo.insert(record)
         print("✓ receive を記録しました: \(resolvedToken) \(resolvedAmount)")
@@ -399,7 +458,12 @@ struct AddPayment: AsyncParsableCommand {
             jpyAmount: resolvedJpy,
             usdJpyRate: resolvedRate,
             feeJpy: fee,
-            notes: notes
+            notes: notes,
+            executionRate: nil,
+            lendingRate: nil,
+            lendingPeriod: nil,
+            lendingStartDate: nil,
+            withdrawalId: nil
         )
         try txRepo.insert(record)
         print("✓ payment を記録しました: \(resolvedToken) \(resolvedAmount)")
@@ -438,7 +502,12 @@ struct AddSend: AsyncParsableCommand {
             jpyAmount: nil,
             usdJpyRate: nil,
             feeJpy: fee,
-            notes: notes
+            notes: notes,
+            executionRate: nil,
+            lendingRate: nil,
+            lendingPeriod: nil,
+            lendingStartDate: nil,
+            withdrawalId: nil
         )
         try txRepo.insert(record)
         print("✓ send を記録しました: \(resolvedToken) \(resolvedAmount)")

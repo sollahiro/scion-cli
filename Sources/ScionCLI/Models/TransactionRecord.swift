@@ -30,6 +30,11 @@ public struct TransactionRecord: Codable, FetchableRecord, PersistableRecord {
     public var usdJpyRate: String?       // USDC取引時のレート
     public var feeJpy: String?           // 手数料・ガス代
     public var notes: String?
+    public var executionRate: String?    // buy/sell 約定レート
+    public var lendingRate: String?      // lend 年率（%）
+    public var lendingPeriod: String?    // lend 貸出期間
+    public var lendingStartDate: Date?   // lend 貸出開始日
+    public var withdrawalId: String?     // transfer 出庫ID
 
     public static let databaseTableName = "transactions"
 
@@ -46,5 +51,10 @@ public struct TransactionRecord: Codable, FetchableRecord, PersistableRecord {
         static let usdJpyRate = Column(CodingKeys.usdJpyRate)
         static let feeJpy = Column(CodingKeys.feeJpy)
         static let notes = Column(CodingKeys.notes)
+        static let executionRate = Column(CodingKeys.executionRate)
+        static let lendingRate = Column(CodingKeys.lendingRate)
+        static let lendingPeriod = Column(CodingKeys.lendingPeriod)
+        static let lendingStartDate = Column(CodingKeys.lendingStartDate)
+        static let withdrawalId = Column(CodingKeys.withdrawalId)
     }
 }
