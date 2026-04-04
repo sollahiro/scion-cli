@@ -11,6 +11,10 @@ struct HoldingsCommand: AsyncParsableCommand {
     var serverURL: String = ProcessInfo.processInfo.environment["SCION_SERVER_URL"] ?? "http://localhost:8080"
 
     mutating func run() async throws {
+        try await HoldingsCommand.execute(serverURL: serverURL)
+    }
+
+    static func execute(serverURL: String) async throws {
         let db = try DatabaseManager(path: DatabaseManager.defaultPath())
         let txRepo = TransactionRepository(db: db)
         let acctRepo = AccountRepository(db: db)

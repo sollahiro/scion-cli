@@ -48,24 +48,19 @@ struct InteractiveShell {
 
     private func runHoldings() async throws {
         print()
-        var cmd = HoldingsCommand()
-        cmd.serverURL = serverURL
-        try await cmd.run()
+        try await HoldingsCommand.execute(serverURL: serverURL)
         pauseForRead()
     }
 
     private func runPnL() async throws {
         print()
-        var cmd = PnLCommand()
-        cmd.serverURL = serverURL
-        try await cmd.run()
+        try await PnLCommand.execute(serverURL: serverURL, tax: nil)
         pauseForRead()
     }
 
     private func runHistory() async throws {
         print()
-        var cmd = HistoryCommand()
-        try await cmd.run()
+        try await HistoryCommand.execute(token: nil, type: nil, account: nil, from: nil, to: nil, year: nil)
         pauseForRead()
     }
 

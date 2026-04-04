@@ -15,6 +15,10 @@ struct HistoryCommand: AsyncParsableCommand {
     @Option(name: .long, help: "年度で絞り込み") var year: Int?
 
     mutating func run() async throws {
+        try await HistoryCommand.execute(token: token, type: type, account: account, from: from, to: to, year: year)
+    }
+
+    static func execute(token: String?, type: String?, account: String?, from: String?, to: String?, year: Int?) async throws {
         let db = try DatabaseManager(path: DatabaseManager.defaultPath())
         let txRepo = TransactionRepository(db: db)
         let acctRepo = AccountRepository(db: db)

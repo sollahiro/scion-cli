@@ -14,6 +14,10 @@ struct PnLCommand: AsyncParsableCommand {
     var serverURL: String = ProcessInfo.processInfo.environment["SCION_SERVER_URL"] ?? "http://localhost:8080"
 
     mutating func run() async throws {
+        try await PnLCommand.execute(serverURL: serverURL, tax: tax)
+    }
+
+    static func execute(serverURL: String, tax: Int?) async throws {
         let db = try DatabaseManager(path: DatabaseManager.defaultPath())
         let txRepo = TransactionRepository(db: db)
         let ratesService = RatesService(dbManager: db, serverURL: serverURL)
@@ -58,7 +62,7 @@ struct PnLCommand: AsyncParsableCommand {
         print()
     }
 
-    private func lendingBalance(token: String, txRepo: TransactionRepository) throws -> Decimal {
+    private static func lendingBalance(token: String, txRepo: TransactionRepository) throws -> Decimal {
         let lends = try txRepo.fetchAll(token: token, type: TransactionType.lend.rawValue)
         let unlends = try txRepo.fetchAll(token: token, type: TransactionType.unlend.rawValue)
         let lendTotal = lends.compactMap { Decimal(string: $0.amount) }.reduce(0, +)
