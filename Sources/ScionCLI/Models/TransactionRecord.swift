@@ -13,6 +13,7 @@ public enum TransactionType: String, Codable, CaseIterable {
     case receive
     case send
     case payment
+    case issue
 }
 
 // MARK: - TransactionRecord
