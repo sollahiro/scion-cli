@@ -48,7 +48,6 @@ struct AddBuy: AsyncParsableCommand {
 
     @Option(help: "トークン: JPYC / USDC") var token: String?
     @Option(help: "取引所アカウントラベル") var exchange: String?
-    @Option(help: "受取アカウントラベル") var to: String?
     @Option(help: "取得量") var amount: String?
     @Option(help: "支払JPY総額") var jpy: String?
     @Option(help: "USD/JPYレート（USDCのみ）") var rate: String?
@@ -63,7 +62,7 @@ struct AddBuy: AsyncParsableCommand {
 
         let resolvedToken = try validateToken(token ?? prompt("トークン (JPYC / USDC): "))
         let fromId = try resolveAccount(label: exchange, prompt: "取引所ラベル: ", repo: repo)
-        let toId = try resolveAccount(label: to, prompt: "受取アカウントラベル: ", repo: repo)
+        let toId = fromId
         let resolvedAmount = try validatePositiveDecimal(amount ?? prompt("取得量: "), fieldName: "取得量")
         let resolvedJpy = try validatePositiveDecimal(jpy ?? prompt("支払JPY総額: "), fieldName: "支払JPY総額")
 

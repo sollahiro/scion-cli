@@ -112,7 +112,7 @@ struct InteractiveShell {
         let exchanges = accounts.filter { $0.type == AccountType.exchange.rawValue }
         guard let fromId = try selectAccount("取引所を選択", from: exchanges) else { return }
 
-        guard let toId = try selectAccount("受取アカウントを選択", from: accounts) else { return }
+        let toId = fromId
 
         guard let amount = readPositiveDecimalField("取得量") else { return }
 
@@ -140,7 +140,7 @@ struct InteractiveShell {
         let record = TransactionRecord(
             id: UUID().uuidString, date: Date(),
             type: TransactionType.buy.rawValue, token: token,
-            fromAccountId: fromId, toAccountId: toId,
+            fromAccountId: nil, toAccountId: toId,
             amount: amount, receivedAmount: nil,
             jpyAmount: jpy, usdJpyRate: rate,
             feeJpy: fee, notes: notes,
@@ -189,7 +189,7 @@ struct InteractiveShell {
         let record = TransactionRecord(
             id: UUID().uuidString, date: Date(),
             type: TransactionType.sell.rawValue, token: token,
-            fromAccountId: fromId, toAccountId: toId,
+            fromAccountId: fromId, toAccountId: nil,
             amount: amount, receivedAmount: nil,
             jpyAmount: jpy, usdJpyRate: rate,
             feeJpy: fee, notes: notes,
