@@ -96,6 +96,25 @@ struct TransactionRepository {
         return totalSellJpy - costBasis
     }
 
+    // アカウントごとの貸出中残高: lend - unlend
+    func fetchNetLending() throws -> [String: [String: Decimal]] {
+        let lends = try fetchAll(type: TransactionType.lend.rawValue)
+        let unlends = try fetchAll(type: TransactionType.unlend.rawValue)
+        var result: [String: [String: Decimal]] = [:]  // [token: [accountId: amount]]
+
+        for r in lends {
+            guard let fromId = r.fromAccountId else { continue }
+            let amount = Decimal(string: r.amount) ?? 0
+            result[r.token, default: [:]][fromId, default: 0] += amount
+        }
+        for r in unlends {
+            guard let toId = r.toAccountId else { continue }
+            let amount = Decimal(string: r.amount) ?? 0
+            result[r.token, default: [:]][toId, default: 0] -= amount
+        }
+        return result
+    }
+
     // レンディング収益の累計
     func fetchLendingIncome(token: String, year: Int? = nil) throws -> Decimal {
         var records = try fetchAll(token: token, type: TransactionType.interest.rawValue)

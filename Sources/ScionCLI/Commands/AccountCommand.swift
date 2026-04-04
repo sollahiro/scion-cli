@@ -5,7 +5,7 @@ struct AccountCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "account",
         abstract: "アカウント管理",
-        subcommands: [Add.self, List.self]
+        subcommands: [Add.self, List.self, Delete.self]
     )
 
     struct Add: AsyncParsableCommand {
@@ -97,6 +97,34 @@ struct AccountCommand: AsyncParsableCommand {
                     print("  \(pad(addr.chain, 16))  \(addr.address)")
                 }
             }
+        }
+    }
+
+    struct Delete: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "delete", abstract: "アカウントを削除")
+
+        @Argument(help: "削除するアカウントのID")
+        var id: String
+
+        mutating func run() async throws {
+            let db = try DatabaseManager(path: DatabaseManager.defaultPath())
+            let repo = AccountRepository(db: db)
+
+            guard let account = try repo.fetch(id: id) else {
+                print("エラー: アカウントが見つかりません: \(id)")
+                throw ExitCode.failure
+            }
+
+            print("削除するアカウント: \(account.label) (\(account.type))")
+            print("本当に削除しますか？ [y/N]: ", terminator: "")
+            let confirm = readLine() ?? ""
+            guard confirm.lowercased() == "y" else {
+                print("キャンセルしました")
+                return
+            }
+
+            try repo.delete(id: id)
+            print("✓ アカウントを削除しました: \(account.label)")
         }
     }
 }

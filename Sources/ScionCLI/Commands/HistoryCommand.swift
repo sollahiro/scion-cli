@@ -65,7 +65,7 @@ struct HistoryCommand: AsyncParsableCommand {
         let displayFormatter = DateFormatter()
         displayFormatter.dateFormat = "yyyy-MM-dd"
 
-        print("\(pad("日付", 12))  \(pad("種別", 10))  \(pad("Token", 6))  \(pad("アカウント", 20))  \(pad("金額", 12))  JPY")
+        print("\(pad("日付", 12))  \(pad("種別", 10))  \(pad("Token", 6))  \(pad("アカウント", 20))  \(pad("数量", 12))  JPY")
         print(String(repeating: "-", count: 80))
 
         for record in records {

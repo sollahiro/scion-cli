@@ -35,4 +35,13 @@ struct AccountRepository {
                 .fetchAll(db)
         }
     }
+
+    func delete(id: String) throws {
+        try db.pool.write { db in
+            try DepositAddress
+                .filter(DepositAddress.Columns.accountId == id)
+                .deleteAll(db)
+            try Account.deleteOne(db, key: id)
+        }
+    }
 }

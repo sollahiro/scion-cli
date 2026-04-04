@@ -74,8 +74,7 @@ struct AddBuy: AsyncParsableCommand {
         let txRepo = TransactionRepository(db: db)
 
         let resolvedToken = try validateToken(token ?? prompt("トークン (JPYC / USDC): "))
-        let fromId = try resolveAccount(label: exchange, prompt: "取引所ラベル: ", repo: repo)
-        let toId = fromId
+        let toId = try resolveAccount(label: exchange, prompt: "取引所ラベル: ", repo: repo)
         let resolvedAmount = try validatePositiveDecimal(amount ?? prompt("取得量: "), fieldName: "取得量")
         let resolvedJpy = try validatePositiveDecimal(jpy ?? prompt("支払JPY総額: "), fieldName: "支払JPY総額")
 
@@ -94,7 +93,7 @@ struct AddBuy: AsyncParsableCommand {
             date: try parseDate(date),
             type: TransactionType.buy.rawValue,
             token: resolvedToken,
-            fromAccountId: fromId,
+            fromAccountId: nil,
             toAccountId: toId,
             amount: resolvedAmount,
             receivedAmount: nil,
@@ -156,7 +155,7 @@ struct AddSell: AsyncParsableCommand {
             type: TransactionType.sell.rawValue,
             token: resolvedToken,
             fromAccountId: fromId,
-            toAccountId: toId,
+            toAccountId: nil,
             amount: resolvedAmount,
             receivedAmount: nil,
             jpyAmount: resolvedJpy,

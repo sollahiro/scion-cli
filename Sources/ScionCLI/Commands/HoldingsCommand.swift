@@ -21,6 +21,7 @@ struct HoldingsCommand: AsyncParsableCommand {
         let ratesService = RatesService(dbManager: db, serverURL: serverURL)
 
         let balances = try txRepo.fetchBalances()
+        let netLending = try txRepo.fetchNetLending()
         let rates = try await ratesService.fetchRates()
 
         for token in ["USDC", "JPYC"] {
@@ -28,7 +29,6 @@ struct HoldingsCommand: AsyncParsableCommand {
 
             print("\n【\(token)】")
             var total: Decimal = 0
-            var lendingTotal: Decimal = 0
 
             for (accountId, amount) in tokenBalances.sorted(by: { $0.key < $1.key }) {
                 guard amount != 0, let account = try acctRepo.fetch(id: accountId) else { continue }
@@ -45,8 +45,14 @@ struct HoldingsCommand: AsyncParsableCommand {
                 }
 
                 print("  \(pad(label, 30)) \(pad(formatDecimal(amount), 12))\(addressInfo)")
+
+                // 貸出中金額を内訳表示
+                if let lent = netLending[token]?[accountId], lent > 0 {
+                    let available = amount - lent
+                    print("    うち貸出中: \(formatDecimal(lent))  利用可能: \(formatDecimal(available))")
+                }
+
                 total += amount
-                if isLending { lendingTotal += amount }
             }
 
             let rate = rates[token] ?? 0
@@ -55,8 +61,13 @@ struct HoldingsCommand: AsyncParsableCommand {
             let unrealized = token == "USDC" ? (rate - avgCost) * (total) : (rate - avgCost) * total
 
             print(String(repeating: "-", count: 60))
+            let lendingTotal = netLending[token]?.values.reduce(0, +) ?? 0
             let sign = unrealized >= 0 ? "+" : ""
-            print("  合計: \(formatDecimal(total))  時価: ¥\(formatJpy(totalJpy))  含み益: \(sign)¥\(formatJpy(unrealized))")
+            var summary = "  合計: \(formatDecimal(total))  時価: ¥\(formatJpy(totalJpy))  含み益: \(sign)¥\(formatJpy(unrealized))"
+            if lendingTotal > 0 {
+                summary += "  （貸出中: \(formatDecimal(lendingTotal))）"
+            }
+            print(summary)
         }
         print()
     }
