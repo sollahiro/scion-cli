@@ -32,6 +32,18 @@ private func validatePositiveDecimal(_ value: String, fieldName: String) throws 
     return value
 }
 
+private func parseDate(_ value: String?) throws -> Date {
+    guard let value else { return Date() }
+    let formats = ["yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm", "yyyy-MM-dd", "yyyy/MM/dd HH:mm:ss", "yyyy/MM/dd HH:mm", "yyyy/MM/dd"]
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    for format in formats {
+        formatter.dateFormat = format
+        if let date = formatter.date(from: value) { return date }
+    }
+    throw ValidationError("日時の形式が不正です: \(value)。例: 2026-03-20 14:10:08")
+}
+
 private func resolveAccount(label: String?, prompt message: String, repo: AccountRepository) throws -> String {
     let resolvedLabel = try label ?? prompt(message)
     let accounts = try repo.fetchAll()
@@ -54,6 +66,7 @@ struct AddBuy: AsyncParsableCommand {
     @Option(help: "手数料（JPY）") var fee: String?
     @Option(help: "メモ") var notes: String?
     @Option(help: "約定レート") var executionRate: String?
+    @Option(help: "取引日時 (YYYY-MM-DD HH:mm:ss)") var date: String?
 
     mutating func run() async throws {
         let db = try DatabaseManager(path: DatabaseManager.defaultPath())
@@ -78,7 +91,7 @@ struct AddBuy: AsyncParsableCommand {
 
         let record = TransactionRecord(
             id: UUID().uuidString,
-            date: Date(),
+            date: try parseDate(date),
             type: TransactionType.buy.rawValue,
             token: resolvedToken,
             fromAccountId: fromId,
@@ -114,6 +127,7 @@ struct AddSell: AsyncParsableCommand {
     @Option(help: "手数料（JPY）") var fee: String?
     @Option(help: "メモ") var notes: String?
     @Option(help: "約定レート") var executionRate: String?
+    @Option(help: "取引日時 (YYYY-MM-DD HH:mm:ss)") var date: String?
 
     mutating func run() async throws {
         let db = try DatabaseManager(path: DatabaseManager.defaultPath())
@@ -138,7 +152,7 @@ struct AddSell: AsyncParsableCommand {
 
         let record = TransactionRecord(
             id: UUID().uuidString,
-            date: Date(),
+            date: try parseDate(date),
             type: TransactionType.sell.rawValue,
             token: resolvedToken,
             fromAccountId: fromId,
@@ -174,6 +188,7 @@ struct AddLend: AsyncParsableCommand {
     @Option(help: "年率 (%)") var lendingRate: String?
     @Option(help: "貸出期間 (例: 30日)") var lendingPeriod: String?
     @Option(help: "貸出開始日 (YYYY-MM-DD)") var lendingStartDate: String?
+    @Option(help: "取引日時 (YYYY-MM-DD HH:mm:ss)") var date: String?
 
     mutating func run() async throws {
         let db = try DatabaseManager(path: DatabaseManager.defaultPath())
@@ -201,7 +216,7 @@ struct AddLend: AsyncParsableCommand {
 
         let record = TransactionRecord(
             id: UUID().uuidString,
-            date: Date(),
+            date: try parseDate(date),
             type: TransactionType.lend.rawValue,
             token: resolvedToken,
             fromAccountId: fromId,
@@ -234,6 +249,7 @@ struct AddUnlend: AsyncParsableCommand {
     @Option(help: "返還量") var amount: String?
     @Option(help: "手数料（JPY）") var fee: String?
     @Option(help: "メモ") var notes: String?
+    @Option(help: "取引日時 (YYYY-MM-DD HH:mm:ss)") var date: String?
 
     mutating func run() async throws {
         let db = try DatabaseManager(path: DatabaseManager.defaultPath())
@@ -247,7 +263,7 @@ struct AddUnlend: AsyncParsableCommand {
 
         let record = TransactionRecord(
             id: UUID().uuidString,
-            date: Date(),
+            date: try parseDate(date),
             type: TransactionType.unlend.rawValue,
             token: resolvedToken,
             fromAccountId: fromId,
@@ -279,6 +295,7 @@ struct AddInterest: AsyncParsableCommand {
     @Option(help: "受取量") var amount: String?
     @Option(help: "USD/JPYレート（USDCのみ）") var rate: String?
     @Option(help: "メモ") var notes: String?
+    @Option(help: "取引日時 (YYYY-MM-DD HH:mm:ss)") var date: String?
 
     mutating func run() async throws {
         let db = try DatabaseManager(path: DatabaseManager.defaultPath())
@@ -299,7 +316,7 @@ struct AddInterest: AsyncParsableCommand {
 
         let record = TransactionRecord(
             id: UUID().uuidString,
-            date: Date(),
+            date: try parseDate(date),
             type: TransactionType.interest.rawValue,
             token: resolvedToken,
             fromAccountId: nil,
@@ -334,6 +351,7 @@ struct AddTransfer: AsyncParsableCommand {
     @Option(help: "手数料（JPY）") var fee: String?
     @Option(help: "メモ") var notes: String?
     @Option(help: "出庫ID") var withdrawalId: String?
+    @Option(help: "取引日時 (YYYY-MM-DD HH:mm:ss)") var date: String?
 
     mutating func run() async throws {
         let db = try DatabaseManager(path: DatabaseManager.defaultPath())
@@ -347,7 +365,7 @@ struct AddTransfer: AsyncParsableCommand {
 
         let record = TransactionRecord(
             id: UUID().uuidString,
-            date: Date(),
+            date: try parseDate(date),
             type: TransactionType.transfer.rawValue,
             token: resolvedToken,
             fromAccountId: fromId,
@@ -379,6 +397,7 @@ struct AddReceive: AsyncParsableCommand {
     @Option(help: "受取量") var amount: String?
     @Option(help: "手数料（JPY）") var fee: String?
     @Option(help: "メモ") var notes: String?
+    @Option(help: "取引日時 (YYYY-MM-DD HH:mm:ss)") var date: String?
 
     mutating func run() async throws {
         let db = try DatabaseManager(path: DatabaseManager.defaultPath())
@@ -391,7 +410,7 @@ struct AddReceive: AsyncParsableCommand {
 
         let record = TransactionRecord(
             id: UUID().uuidString,
-            date: Date(),
+            date: try parseDate(date),
             type: TransactionType.receive.rawValue,
             token: resolvedToken,
             fromAccountId: nil,
@@ -425,6 +444,7 @@ struct AddPayment: AsyncParsableCommand {
     @Option(help: "USD/JPYレート（USDCのみ）") var rate: String?
     @Option(help: "手数料（JPY）") var fee: String?
     @Option(help: "メモ") var notes: String?
+    @Option(help: "取引日時 (YYYY-MM-DD HH:mm:ss)") var date: String?
 
     mutating func run() async throws {
         let db = try DatabaseManager(path: DatabaseManager.defaultPath())
@@ -447,7 +467,7 @@ struct AddPayment: AsyncParsableCommand {
 
         let record = TransactionRecord(
             id: UUID().uuidString,
-            date: Date(),
+            date: try parseDate(date),
             type: TransactionType.payment.rawValue,
             token: resolvedToken,
             fromAccountId: fromId,
@@ -479,6 +499,7 @@ struct AddSend: AsyncParsableCommand {
     @Option(help: "送出量") var amount: String?
     @Option(help: "手数料（JPY）") var fee: String?
     @Option(help: "メモ") var notes: String?
+    @Option(help: "取引日時 (YYYY-MM-DD HH:mm:ss)") var date: String?
 
     mutating func run() async throws {
         let db = try DatabaseManager(path: DatabaseManager.defaultPath())
@@ -491,7 +512,7 @@ struct AddSend: AsyncParsableCommand {
 
         let record = TransactionRecord(
             id: UUID().uuidString,
-            date: Date(),
+            date: try parseDate(date),
             type: TransactionType.send.rawValue,
             token: resolvedToken,
             fromAccountId: fromId,
