@@ -9,7 +9,7 @@ struct AddCommand: AsyncParsableCommand {
             AddBuy.self, AddSell.self,
             AddLend.self, AddUnlend.self, AddInterest.self,
             AddTransfer.self, AddReceive.self, AddSend.self,
-            AddPayment.self, AddIssue.self,
+            AddPayment.self, AddIssue.self, AddRedeem.self,
         ]
     )
 }
@@ -530,6 +530,51 @@ struct AddIssue: AsyncParsableCommand {
         )
         try txRepo.insert(record)
         print("✓ issue を記録しました: JPYC \(resolvedAmount)（支払JPY: \(resolvedJpy)）")
+    }
+}
+
+// MARK: - redeem
+
+struct AddRedeem: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "redeem", abstract: "JPYC EX償還を記録（ウォレットからJPYC返還 → JPY受取）")
+
+    @Option(help: "送出ウォレットアカウントラベル") var from: String?
+    @Option(help: "償還量（JPYC）") var amount: String?
+    @Option(help: "受取JPY総額（省略時は償還量と同額）") var jpy: String?
+    @Option(help: "手数料（JPY）") var fee: String?
+    @Option(help: "メモ") var notes: String?
+    @Option(help: "取引日時 (YYYY-MM-DD HH:mm:ss)") var date: String?
+
+    mutating func run() async throws {
+        let db = try DatabaseManager(path: DatabaseManager.defaultPath())
+        let repo = AccountRepository(db: db)
+        let txRepo = TransactionRepository(db: db)
+
+        let fromId = try resolveAccount(label: from, prompt: "送出ウォレットラベル: ", repo: repo)
+        let resolvedAmount = try validatePositiveDecimal(amount ?? prompt("償還量（JPYC）: "), fieldName: "償還量")
+        let resolvedJpy = try validatePositiveDecimal(jpy ?? resolvedAmount, fieldName: "受取JPY総額")
+
+        let record = TransactionRecord(
+            id: UUID().uuidString,
+            date: try parseDate(date),
+            type: TransactionType.redeem.rawValue,
+            token: "JPYC",
+            fromAccountId: fromId,
+            toAccountId: nil,
+            amount: resolvedAmount,
+            receivedAmount: nil,
+            jpyAmount: resolvedJpy,
+            usdJpyRate: nil,
+            feeJpy: fee,
+            notes: notes,
+            executionRate: nil,
+            lendingRate: nil,
+            lendingPeriod: nil,
+            lendingStartDate: nil,
+            withdrawalId: nil
+        )
+        try txRepo.insert(record)
+        print("✓ redeem を記録しました: JPYC \(resolvedAmount)（受取JPY: \(resolvedJpy)）")
     }
 }
 
