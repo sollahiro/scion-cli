@@ -77,6 +77,8 @@ struct InteractiveShell {
             "外部からの受取",
             "外部への送出",
             "支払い",
+            "発行（JPYC EX）",
+            "償還（JPYC EX）",
             "← 戻る",
         ]
 
@@ -88,16 +90,18 @@ struct InteractiveShell {
         let accounts = try repo.fetchAll()
 
         switch idx {
-        case 0: try runBuyFlow(accounts: accounts, repo: repo, txRepo: txRepo)
-        case 1: try runSellFlow(accounts: accounts, repo: repo, txRepo: txRepo)
-        case 2: try runLendFlow(accounts: accounts, repo: repo, txRepo: txRepo)
-        case 3: try runUnlendFlow(accounts: accounts, repo: repo, txRepo: txRepo)
-        case 4: try runInterestFlow(accounts: accounts, repo: repo, txRepo: txRepo)
-        case 5: try runTransferFlow(accounts: accounts, repo: repo, txRepo: txRepo)
-        case 6: try runReceiveFlow(accounts: accounts, repo: repo, txRepo: txRepo)
-        case 7: try runSendFlow(accounts: accounts, repo: repo, txRepo: txRepo)
-        case 8: try runPaymentFlow(accounts: accounts, repo: repo, txRepo: txRepo)
-        case 9: return
+        case 0:  try runBuyFlow(accounts: accounts, repo: repo, txRepo: txRepo)
+        case 1:  try runSellFlow(accounts: accounts, repo: repo, txRepo: txRepo)
+        case 2:  try runLendFlow(accounts: accounts, repo: repo, txRepo: txRepo)
+        case 3:  try runUnlendFlow(accounts: accounts, repo: repo, txRepo: txRepo)
+        case 4:  try runInterestFlow(accounts: accounts, repo: repo, txRepo: txRepo)
+        case 5:  try runTransferFlow(accounts: accounts, repo: repo, txRepo: txRepo)
+        case 6:  try runReceiveFlow(accounts: accounts, repo: repo, txRepo: txRepo)
+        case 7:  try runSendFlow(accounts: accounts, repo: repo, txRepo: txRepo)
+        case 8:  try runPaymentFlow(accounts: accounts, repo: repo, txRepo: txRepo)
+        case 9:  try runIssueFlow(accounts: accounts, repo: repo, txRepo: txRepo)
+        case 10: try runRedeemFlow(accounts: accounts, repo: repo, txRepo: txRepo)
+        case 11: return
         default: break
         }
     }
@@ -379,6 +383,60 @@ struct InteractiveShell {
         pauseForRead()
     }
 
+    private func runIssueFlow(
+        accounts: [Account], repo: AccountRepository, txRepo: TransactionRepository
+    ) throws {
+        let wallets = accounts.filter { $0.type == AccountType.wallet.rawValue }
+        guard let toId = try selectAccount("受取ウォレットを選択", from: wallets) else { return }
+
+        guard let amount = readPositiveDecimalField("発行量（JPYC）") else { return }
+        let jpy   = readPositiveDecimalField("支払JPY総額（スキップで発行量と同額）") ?? amount
+        let fee   = readOptionalField("手数料 (JPY)  スキップはEnter")
+        let notes = readOptionalField("メモ         スキップはEnter")
+
+        let record = TransactionRecord(
+            id: UUID().uuidString, date: Date(),
+            type: TransactionType.issue.rawValue, token: "JPYC",
+            fromAccountId: nil, toAccountId: toId,
+            amount: amount, receivedAmount: nil,
+            jpyAmount: jpy, usdJpyRate: nil,
+            feeJpy: fee, notes: notes,
+            executionRate: nil,
+            lendingRate: nil, lendingPeriod: nil, lendingStartDate: nil,
+            withdrawalId: nil
+        )
+        try txRepo.insert(record)
+        print("✓ issue を記録しました: JPYC \(amount)（支払JPY: \(jpy)）")
+        pauseForRead()
+    }
+
+    private func runRedeemFlow(
+        accounts: [Account], repo: AccountRepository, txRepo: TransactionRepository
+    ) throws {
+        let wallets = accounts.filter { $0.type == AccountType.wallet.rawValue }
+        guard let fromId = try selectAccount("送出ウォレットを選択", from: wallets) else { return }
+
+        guard let amount = readPositiveDecimalField("償還量（JPYC）") else { return }
+        let jpy   = readPositiveDecimalField("受取JPY総額（スキップで償還量と同額）") ?? amount
+        let fee   = readOptionalField("手数料 (JPY)  スキップはEnter")
+        let notes = readOptionalField("メモ         スキップはEnter")
+
+        let record = TransactionRecord(
+            id: UUID().uuidString, date: Date(),
+            type: TransactionType.redeem.rawValue, token: "JPYC",
+            fromAccountId: fromId, toAccountId: nil,
+            amount: amount, receivedAmount: nil,
+            jpyAmount: jpy, usdJpyRate: nil,
+            feeJpy: fee, notes: notes,
+            executionRate: nil,
+            lendingRate: nil, lendingPeriod: nil, lendingStartDate: nil,
+            withdrawalId: nil
+        )
+        try txRepo.insert(record)
+        print("✓ redeem を記録しました: JPYC \(amount)（受取JPY: \(jpy)）")
+        pauseForRead()
+    }
+
     private func runPaymentFlow(
         accounts: [Account], repo: AccountRepository, txRepo: TransactionRepository
     ) throws {
@@ -422,7 +480,7 @@ struct InteractiveShell {
     // MARK: - Account Menu
 
     private func runAccountMenu() async throws {
-        let items = ["アカウント一覧", "アカウント追加", "← 戻る"]
+        let items = ["アカウント一覧", "アカウント追加", "アカウント削除", "← 戻る"]
         guard let idx = try ui.select(prompt: "アカウント管理", items: items) else { return }
 
         switch idx {
@@ -433,9 +491,41 @@ struct InteractiveShell {
             pauseForRead()
         case 1:
             try runAccountAddFlow()
+        case 2:
+            try runAccountDeleteFlow()
         default:
             return
         }
+    }
+
+    private func runAccountDeleteFlow() throws {
+        let db   = try DatabaseManager(path: DatabaseManager.defaultPath())
+        let repo = AccountRepository(db: db)
+        let accounts = try repo.fetchAll()
+
+        if accounts.isEmpty {
+            print("削除できるアカウントがありません。")
+            pauseForRead()
+            return
+        }
+
+        let labels = accounts.map { "\($0.label) (\($0.type))" }
+        guard let idx = try ui.select(prompt: "削除するアカウントを選択", items: labels) else { return }
+        let account = accounts[idx]
+
+        print("削除するアカウント: \(account.label) (\(account.type))")
+        print("本当に削除しますか？ [y/N]: ", terminator: "")
+        fflush(stdout)
+        let confirm = readLine() ?? ""
+        guard confirm.lowercased() == "y" else {
+            print("キャンセルしました")
+            pauseForRead()
+            return
+        }
+
+        try repo.delete(id: account.id)
+        print("✓ アカウントを削除しました: \(account.label)")
+        pauseForRead()
     }
 
     private func runAccountAddFlow() throws {
