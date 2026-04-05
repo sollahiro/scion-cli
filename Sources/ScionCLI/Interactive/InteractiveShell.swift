@@ -176,7 +176,7 @@ struct InteractiveShell {
         guard let token = try selectToken() else { return }
 
         let exchanges = accounts.filter { $0.type == AccountType.exchange.rawValue }
-        guard let fromId = try selectAccount("取引所を選択", from: exchanges) else { return }
+        guard let fromId = try selectAccount("取引所を選択", from: exchanges, repo: repo) else { return }
 
         let toId = fromId
 
@@ -225,10 +225,10 @@ struct InteractiveShell {
         guard let token = try selectToken() else { return }
 
         let wallets = accounts.filter { $0.type == AccountType.wallet.rawValue }
-        guard let fromId = try selectAccount("送出アカウントを選択", from: wallets) else { return }
+        guard let fromId = try selectAccount("送出アカウントを選択", from: wallets, repo: repo) else { return }
 
         let exchanges = accounts.filter { $0.type == AccountType.exchange.rawValue }
-        guard let toId = try selectAccount("取引所を選択", from: exchanges) else { return }
+        guard let toId = try selectAccount("取引所を選択", from: exchanges, repo: repo) else { return }
 
         guard let amount = readPositiveDecimalField("売却量") else { return }
 
@@ -274,10 +274,10 @@ struct InteractiveShell {
         guard let token = try selectToken() else { return }
 
         let wallets = accounts.filter { $0.type == AccountType.wallet.rawValue }
-        guard let fromId = try selectAccount("送出アカウントを選択", from: wallets) else { return }
+        guard let fromId = try selectAccount("送出アカウントを選択", from: wallets, repo: repo) else { return }
 
         let platforms = accounts.filter { $0.type == AccountType.lendingPlatform.rawValue }
-        guard let toId = try selectAccount("プラットフォームを選択", from: platforms) else { return }
+        guard let toId = try selectAccount("プラットフォームを選択", from: platforms, repo: repo) else { return }
 
         guard let amount = readPositiveDecimalField("預入量") else { return }
         let lendingRate      = readOptionalField("年率 (%)        スキップはEnter")
@@ -310,10 +310,10 @@ struct InteractiveShell {
         guard let token = try selectToken() else { return }
 
         let platforms = accounts.filter { $0.type == AccountType.lendingPlatform.rawValue }
-        guard let fromId = try selectAccount("プラットフォームを選択", from: platforms) else { return }
+        guard let fromId = try selectAccount("プラットフォームを選択", from: platforms, repo: repo) else { return }
 
         let wallets = accounts.filter { $0.type == AccountType.wallet.rawValue }
-        guard let toId = try selectAccount("受取アカウントを選択", from: wallets) else { return }
+        guard let toId = try selectAccount("受取アカウントを選択", from: wallets, repo: repo) else { return }
 
         guard let amount = readPositiveDecimalField("返還量") else { return }
         let fee   = readOptionalField("手数料 (JPY)  スキップはEnter")
@@ -341,7 +341,7 @@ struct InteractiveShell {
         guard let token = try selectToken() else { return }
 
         let platforms = accounts.filter { $0.type == AccountType.lendingPlatform.rawValue }
-        guard let toId = try selectAccount("プラットフォームを選択", from: platforms) else { return }
+        guard let toId = try selectAccount("プラットフォームを選択", from: platforms, repo: repo) else { return }
 
         guard let amount = readPositiveDecimalField("受取量") else { return }
         let rate  = token == "USDC" ? readPositiveDecimalField("USD/JPYレート") : nil
@@ -368,8 +368,8 @@ struct InteractiveShell {
     ) throws {
         guard let token = try selectToken() else { return }
 
-        guard let fromId = try selectAccount("送出アカウントを選択", from: accounts) else { return }
-        guard let toId   = try selectAccount("受取アカウントを選択", from: accounts) else { return }
+        guard let fromId = try selectAccount("送出アカウントを選択", from: accounts, repo: repo) else { return }
+        guard let toId   = try selectAccount("受取アカウントを選択", from: accounts, repo: repo) else { return }
 
         guard let amount = readPositiveDecimalField("送出量") else { return }
         let received     = readOptionalField("着金量（手数料で減る場合）  スキップはEnter")
@@ -397,7 +397,7 @@ struct InteractiveShell {
         accounts: [Account], repo: AccountRepository, txRepo: TransactionRepository
     ) throws {
         guard let token = try selectToken() else { return }
-        guard let toId  = try selectAccount("受取アカウントを選択", from: accounts) else { return }
+        guard let toId  = try selectAccount("受取アカウントを選択", from: accounts, repo: repo) else { return }
 
         guard let amount = readPositiveDecimalField("受取量") else { return }
         let fee   = readOptionalField("手数料 (JPY)  スキップはEnter")
@@ -423,7 +423,7 @@ struct InteractiveShell {
         accounts: [Account], repo: AccountRepository, txRepo: TransactionRepository
     ) throws {
         guard let token  = try selectToken() else { return }
-        guard let fromId = try selectAccount("送出アカウントを選択", from: accounts) else { return }
+        guard let fromId = try selectAccount("送出アカウントを選択", from: accounts, repo: repo) else { return }
 
         guard let amount = readPositiveDecimalField("送出量") else { return }
         let fee   = readOptionalField("手数料 (JPY)  スキップはEnter")
@@ -449,7 +449,7 @@ struct InteractiveShell {
         accounts: [Account], repo: AccountRepository, txRepo: TransactionRepository
     ) throws {
         let wallets = accounts.filter { $0.type == AccountType.wallet.rawValue }
-        guard let toId = try selectAccount("受取ウォレットを選択", from: wallets) else { return }
+        guard let toId = try selectAccount("受取ウォレットを選択", from: wallets, repo: repo) else { return }
 
         guard let amount = readPositiveDecimalField("発行量（JPYC）") else { return }
         let jpy   = readPositiveDecimalField("支払JPY総額（スキップで発行量と同額）") ?? amount
@@ -476,7 +476,7 @@ struct InteractiveShell {
         accounts: [Account], repo: AccountRepository, txRepo: TransactionRepository
     ) throws {
         let wallets = accounts.filter { $0.type == AccountType.wallet.rawValue }
-        guard let fromId = try selectAccount("送出ウォレットを選択", from: wallets) else { return }
+        guard let fromId = try selectAccount("送出ウォレットを選択", from: wallets, repo: repo) else { return }
 
         guard let amount = readPositiveDecimalField("償還量（JPYC）") else { return }
         let jpy   = readPositiveDecimalField("受取JPY総額（スキップで償還量と同額）") ?? amount
@@ -503,7 +503,7 @@ struct InteractiveShell {
         accounts: [Account], repo: AccountRepository, txRepo: TransactionRepository
     ) throws {
         guard let token  = try selectToken() else { return }
-        guard let fromId = try selectAccount("送出アカウントを選択", from: accounts) else { return }
+        guard let fromId = try selectAccount("送出アカウントを選択", from: accounts, repo: repo) else { return }
 
         guard let amount = readPositiveDecimalField("支払量") else { return }
 
@@ -571,11 +571,16 @@ struct InteractiveShell {
             return
         }
 
-        let labels = accounts.map { "\($0.label) (\($0.type))" }
+        let labels = accounts.map { account -> String in
+            guard account.type == AccountType.wallet.rawValue,
+                  let chain = (try? repo.fetchDepositAddresses(accountId: account.id))?.first?.chain
+            else { return "\(account.label) (\(account.type))" }
+            return "\(account.label)[\(chain)] (\(account.type))"
+        }
         guard let idx = try ui.select(prompt: "削除するアカウントを選択", items: labels) else { return }
         let account = accounts[idx]
 
-        print("削除するアカウント: \(account.label) (\(account.type))")
+        print("削除するアカウント: \(labels[idx])")
         print("本当に削除しますか？ [y/N]: ", terminator: "")
         fflush(stdout)
         let confirm = readLine() ?? ""
@@ -637,13 +642,19 @@ struct InteractiveShell {
     }
 
     /// Account picker from a filtered list. Returns the account ID, or nil if cancelled.
-    private func selectAccount(_ promptText: String, from accounts: [Account]) throws -> String? {
+    /// Wallet accounts are displayed as "label[chain]".
+    private func selectAccount(_ promptText: String, from accounts: [Account], repo: AccountRepository) throws -> String? {
         if accounts.isEmpty {
             print("該当するアカウントがありません。先にアカウントを追加してください。")
             pauseForRead()
             return nil
         }
-        let labels = accounts.map { $0.label }
+        let labels = accounts.map { account -> String in
+            guard account.type == AccountType.wallet.rawValue,
+                  let chain = (try? repo.fetchDepositAddresses(accountId: account.id))?.first?.chain
+            else { return account.label }
+            return "\(account.label)[\(chain)]"
+        }
         guard let idx = try ui.select(prompt: promptText, items: labels) else { return nil }
         return accounts[idx].id
     }
