@@ -10,6 +10,12 @@ struct TransactionRepository {
         }
     }
 
+    func delete(id: String) throws {
+        try db.pool.write { db in
+            try TransactionRecord.deleteOne(db, key: id)
+        }
+    }
+
     func fetchAll(token: String? = nil, type: String? = nil, accountId: String? = nil, from: Date? = nil, to: Date? = nil) throws -> [TransactionRecord] {
         try db.pool.read { db in
             var request = TransactionRecord.all()

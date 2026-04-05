@@ -60,7 +60,69 @@ struct InteractiveShell {
 
     private func runHistory() async throws {
         print()
+        let db = try DatabaseManager(path: DatabaseManager.defaultPath())
+        let txRepo = TransactionRepository(db: db)
+        let acctRepo = AccountRepository(db: db)
+
         try await HistoryCommand.execute(token: nil, type: nil, account: nil, from: nil, to: nil, year: nil)
+
+        let items = ["削除する", "← 戻る"]
+        guard let idx = try ui.select(prompt: "操作を選択", items: items) else { return }
+        guard idx == 0 else { return }
+
+        // 取引一覧をセレクトUIで表示
+        let records = try txRepo.fetchAll()
+        guard !records.isEmpty else {
+            print("取引がありません。")
+            pauseForRead()
+            return
+        }
+
+        let allAccounts = try acctRepo.fetchAll()
+        let accountById = Dictionary(uniqueKeysWithValues: allAccounts.map { ($0.id, $0) })
+        var accountChain: [String: String] = [:]
+        for account in allAccounts where account.type == AccountType.wallet.rawValue {
+            let addrs = try acctRepo.fetchDepositAddresses(accountId: account.id)
+            if let chain = addrs.first?.chain { accountChain[account.id] = chain }
+        }
+        func accountLabel(id: String?) -> String {
+            guard let id, let account = accountById[id] else { return "-" }
+            if let chain = accountChain[id] { return "\(account.label)[\(chain)]" }
+            return account.label
+        }
+
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+
+        let labels = records.map { r -> String in
+            let fromStr = accountLabel(id: r.fromAccountId)
+            let toStr   = accountLabel(id: r.toAccountId)
+            let acct: String
+            if r.fromAccountId != nil && r.toAccountId != nil {
+                acct = "\(fromStr) → \(toStr)"
+            } else if r.fromAccountId != nil {
+                acct = fromStr
+            } else {
+                acct = toStr
+            }
+            return "\(dateFormatter.string(from: r.date))  \(pad(r.type, 10))  \(pad(r.token, 6))  \(pad(acct, 28))  \(r.amount)"
+        }
+
+        guard let recIdx = try ui.select(prompt: "削除する取引を選択  q でキャンセル", items: labels) else { return }
+        let target = records[recIdx]
+
+        print("削除する取引: \(labels[recIdx])")
+        print("本当に削除しますか？ [y/N]: ", terminator: "")
+        fflush(stdout)
+        let confirm = readLine() ?? ""
+        guard confirm.lowercased() == "y" else {
+            print("キャンセルしました")
+            pauseForRead()
+            return
+        }
+
+        try txRepo.delete(id: target.id)
+        print("✓ 取引を削除しました")
         pauseForRead()
     }
 

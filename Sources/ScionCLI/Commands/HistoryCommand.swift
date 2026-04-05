@@ -4,7 +4,8 @@ import Foundation
 struct HistoryCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "history",
-        abstract: "取引履歴を表示"
+        abstract: "取引履歴を表示・削除",
+        subcommands: [Delete.self]
     )
 
     @Option(name: .long, help: "トークンで絞り込み: JPYC / USDC") var token: String?
@@ -62,23 +63,85 @@ struct HistoryCommand: AsyncParsableCommand {
             return
         }
 
+        // アカウントとチェーン情報をプリロード
+        let allAccounts = try acctRepo.fetchAll()
+        let accountById = Dictionary(uniqueKeysWithValues: allAccounts.map { ($0.id, $0) })
+        var accountChain: [String: String] = [:]
+        for account in allAccounts where account.type == AccountType.wallet.rawValue {
+            let addrs = try acctRepo.fetchDepositAddresses(accountId: account.id)
+            if let chain = addrs.first?.chain {
+                accountChain[account.id] = chain
+            }
+        }
+
+        func accountLabel(id: String?) -> String {
+            guard let id, let account = accountById[id] else { return "-" }
+            if let chain = accountChain[id] {
+                return "\(account.label)[\(chain)]"
+            }
+            return account.label
+        }
+
         let displayFormatter = DateFormatter()
         displayFormatter.dateFormat = "yyyy-MM-dd"
 
-        print("\(pad("日付", 12))  \(pad("種別", 10))  \(pad("Token", 6))  \(pad("アカウント", 20))  \(pad("数量", 12))  JPY")
-        print(String(repeating: "-", count: 80))
+        let acctCol = 28
+        print("\(pad("日付", 12))  \(pad("種別", 10))  \(pad("Token", 6))  \(pad("アカウント", acctCol))  \(pad("数量", 12))  JPY")
+        print(String(repeating: "-", count: 90))
 
         for record in records {
             let dateStr = displayFormatter.string(from: record.date)
+            let fromStr = accountLabel(id: record.fromAccountId)
+            let toStr   = accountLabel(id: record.toAccountId)
+            let accountStr: String
+            if record.fromAccountId != nil && record.toAccountId != nil {
+                accountStr = "\(fromStr) → \(toStr)"
+            } else if record.fromAccountId != nil {
+                accountStr = fromStr
+            } else {
+                accountStr = toStr
+            }
+            let jpyStr = record.jpyAmount.map { "¥\($0)" } ?? "-"
+
+            print("\(pad(dateStr, 12))  \(pad(record.type, 10))  \(pad(record.token, 6))  \(pad(String(accountStr.prefix(acctCol)), acctCol))  \(pad(record.amount, 12))  \(jpyStr)")
+        }
+        print()
+    }
+
+    struct Delete: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "delete", abstract: "取引を削除")
+
+        @Argument(help: "削除する取引のID")
+        var id: String
+
+        mutating func run() async throws {
+            let db = try DatabaseManager(path: DatabaseManager.defaultPath())
+            let txRepo = TransactionRepository(db: db)
+            let acctRepo = AccountRepository(db: db)
+
+            guard let record = try txRepo.fetchAll().first(where: { $0.id == id }) else {
+                print("エラー: 取引が見つかりません: \(id)")
+                throw ExitCode.failure
+            }
+
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
             let fromLabel = record.fromAccountId.flatMap { try? acctRepo.fetch(id: $0)?.label } ?? "-"
-            let toLabel = record.toAccountId.flatMap { try? acctRepo.fetch(id: $0)?.label } ?? "-"
+            let toLabel   = record.toAccountId.flatMap   { try? acctRepo.fetch(id: $0)?.label } ?? "-"
             let accountStr = record.fromAccountId != nil && record.toAccountId != nil
                 ? "\(fromLabel) → \(toLabel)"
                 : record.fromAccountId != nil ? fromLabel : toLabel
-            let jpyStr = record.jpyAmount.map { "¥\($0)" } ?? "-"
 
-            print("\(pad(dateStr, 12))  \(pad(record.type, 10))  \(pad(record.token, 6))  \(pad(String(accountStr.prefix(20)), 20))  \(pad(record.amount, 12))  \(jpyStr)")
+            print("削除する取引: \(dateFormatter.string(from: record.date))  \(record.type)  \(record.token)  \(accountStr)  \(record.amount)")
+            print("本当に削除しますか？ [y/N]: ", terminator: "")
+            let confirm = readLine() ?? ""
+            guard confirm.lowercased() == "y" else {
+                print("キャンセルしました")
+                return
+            }
+
+            try txRepo.delete(id: id)
+            print("✓ 取引を削除しました")
         }
-        print()
     }
 }
