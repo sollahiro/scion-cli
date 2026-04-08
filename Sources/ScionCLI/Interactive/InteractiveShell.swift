@@ -1,4 +1,5 @@
 import Foundation
+import WalletConnectSign
 
 struct InteractiveShell {
 
@@ -16,6 +17,7 @@ struct InteractiveShell {
                 "損益を確認する",
                 "取引履歴を見る",
                 "取引を記録する",
+                "オンチェーン取引を同期する",
                 "アカウントを管理する",
                 "終了する",
             ]
@@ -33,8 +35,9 @@ struct InteractiveShell {
                 case 1: try await runPnL()
                 case 2: try await runHistory()
                 case 3: try await runAddMenu()
-                case 4: try await runAccountMenu()
-                case 5: print("終了します。"); return
+                case 4: try await runSync()
+                case 5: try await runAccountMenu()
+                case 6: print("終了します。"); return
                 default: break
                 }
             } catch {
@@ -45,6 +48,32 @@ struct InteractiveShell {
     }
 
     // MARK: - View Commands
+
+    private func runSync() async throws {
+        print()
+        let items = ["全ウォレットを同期", "ウォレットを選んで同期", "← 戻る"]
+        guard let idx = try ui.select(prompt: "同期するウォレットを選択", items: items) else { return }
+        guard idx != 2 else { return }
+
+        var accountLabel: String? = nil
+        if idx == 1 {
+            let db = try DatabaseManager(path: DatabaseManager.defaultPath())
+            let repo = AccountRepository(db: db)
+            let wallets = try repo.fetchAll().filter { $0.type == AccountType.wallet.rawValue }
+            guard !wallets.isEmpty else {
+                print("ウォレットが登録されていません。")
+                pauseForRead()
+                return
+            }
+            let labels = wallets.map { $0.label }
+            guard let wIdx = try ui.select(prompt: "同期するウォレットを選択", items: labels) else { return }
+            accountLabel = wallets[wIdx].label
+        }
+
+        print()
+        try await SyncCommand.execute(serverURL: serverURL, accountLabel: accountLabel, dryRun: false)
+        pauseForRead()
+    }
 
     private func runHoldings() async throws {
         print()
@@ -542,7 +571,7 @@ struct InteractiveShell {
     // MARK: - Account Menu
 
     private func runAccountMenu() async throws {
-        let items = ["アカウント一覧", "アカウント追加", "アカウント削除", "← 戻る"]
+        let items = ["アカウント一覧", "アカウント追加", "WalletConnect で接続", "アカウント削除", "← 戻る"]
         guard let idx = try ui.select(prompt: "アカウント管理", items: items) else { return }
 
         switch idx {
@@ -554,10 +583,95 @@ struct InteractiveShell {
         case 1:
             try runAccountAddFlow()
         case 2:
+            try await runWalletConnectFlow()
+        case 3:
             try runAccountDeleteFlow()
         default:
             return
         }
+    }
+
+    private func runWalletConnectFlow() async throws {
+        let projectId = ProcessInfo.processInfo.environment["WALLETCONNECT_PROJECT_ID"] ?? ""
+        guard !projectId.isEmpty else {
+            print()
+            print("⚠ 環境変数 WALLETCONNECT_PROJECT_ID が設定されていません")
+            print("  export WALLETCONNECT_PROJECT_ID=your_project_id を実行してから再試行してください")
+            print("  Project IDは https://cloud.walletconnect.com で取得できます")
+            pauseForRead()
+            return
+        }
+
+        print("\nWalletConnect でウォレットを接続します...")
+        print("接続URIを生成中...\n")
+
+        let service = WalletConnectCLIService()
+        service.configure(projectId: projectId)
+
+        let uri: WalletConnectURI
+        do {
+            uri = try await service.generateURI()
+        } catch {
+            print("URI生成エラー: \(error.localizedDescription)")
+            pauseForRead()
+            return
+        }
+
+        let separator = String(repeating: "─", count: 70)
+        print(separator)
+        print(uri.absoluteString)
+        print(separator)
+        print()
+        print("↑ このURIをMetaMask等のウォレットアプリに貼り付けてください")
+        print("  （「WalletConnect」→「URIを貼り付け」）")
+        print()
+        print("接続待機中... (120秒でタイムアウト)")
+
+        let address: String
+        do {
+            address = try await service.waitForConnection(timeout: 120)
+        } catch WCError.timeout {
+            print("\n⚠ タイムアウトしました。再度お試しください。")
+            pauseForRead()
+            return
+        } catch {
+            print("\nエラー: \(error.localizedDescription)")
+            pauseForRead()
+            return
+        }
+
+        print("\n✓ 接続しました！")
+        print("  アドレス: \(address)")
+        print()
+        print("ラベルを入力してください（Enter でスキップ → \"WalletConnect\"）: ", terminator: "")
+        fflush(stdout)
+        let input = readLine() ?? ""
+        let resolvedLabel = input.isEmpty ? "WalletConnect" : input
+
+        let db = try DatabaseManager(path: DatabaseManager.defaultPath())
+        let repo = AccountRepository(db: db)
+
+        let account = Account(
+            id: UUID().uuidString,
+            type: AccountType.wallet.rawValue,
+            label: resolvedLabel,
+            url: nil,
+            contractAddress: nil
+        )
+        try repo.insert(account)
+
+        for chain in ["ethereum", "polygon", "avalanche"] {
+            let depositAddr = DepositAddress(
+                id: UUID().uuidString,
+                accountId: account.id,
+                chain: chain,
+                address: address
+            )
+            try repo.insertDepositAddress(depositAddr)
+        }
+
+        print("✓ ウォレットを登録しました: \(resolvedLabel) [\(address.prefix(6))...\(address.suffix(4))]")
+        pauseForRead()
     }
 
     private func runAccountDeleteFlow() throws {

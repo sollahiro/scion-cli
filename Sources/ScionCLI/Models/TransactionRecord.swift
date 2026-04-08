@@ -37,6 +37,8 @@ public struct TransactionRecord: Codable, FetchableRecord, PersistableRecord {
     public var lendingPeriod: String?    // lend 貸出期間
     public var lendingStartDate: Date?   // lend 貸出開始日
     public var withdrawalId: String?     // transfer 出庫ID
+    public var blockchainTxHash: String? // オンチェーンTxハッシュ（重複防止用）
+    public var source: String?           // "manual" | "blockchain"
 
     public static let databaseTableName = "transactions"
 
@@ -58,5 +60,7 @@ public struct TransactionRecord: Codable, FetchableRecord, PersistableRecord {
         static let lendingPeriod = Column(CodingKeys.lendingPeriod)
         static let lendingStartDate = Column(CodingKeys.lendingStartDate)
         static let withdrawalId = Column(CodingKeys.withdrawalId)
+        static let blockchainTxHash = Column(CodingKeys.blockchainTxHash)
+        static let source = Column(CodingKeys.source)
     }
 }

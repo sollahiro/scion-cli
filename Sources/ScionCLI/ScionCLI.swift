@@ -8,6 +8,7 @@ struct ScionCLI: AsyncParsableCommand {
         abstract: "電子決済手段（JPYC/USDC）取引管理ツール",
         subcommands: [
             AccountCommand.self,
+            SyncCommand.self,
             AddCommand.self,
             HoldingsCommand.self,
             PnLCommand.self,

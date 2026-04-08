@@ -10,6 +10,27 @@ struct TransactionRepository {
         }
     }
 
+    /// TxHashが既にDBに存在するか確認する（同期時の重複防止）
+    func existsByTxHash(_ hash: String) throws -> Bool {
+        try db.pool.read { db in
+            try TransactionRecord
+                .filter(TransactionRecord.Columns.blockchainTxHash == hash)
+                .fetchCount(db) > 0
+        }
+    }
+
+    /// TxHashが未登録の場合のみ挿入する。返り値: true=挿入した / false=スキップ（重複）
+    @discardableResult
+    func insertIfNotExists(_ record: TransactionRecord) throws -> Bool {
+        guard let hash = record.blockchainTxHash else {
+            try insert(record)
+            return true
+        }
+        guard try !existsByTxHash(hash) else { return false }
+        try insert(record)
+        return true
+    }
+
     func delete(id: String) throws {
         try db.pool.write { db in
             try TransactionRecord.deleteOne(db, key: id)

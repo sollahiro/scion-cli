@@ -52,5 +52,19 @@ enum Migrations {
                 t.add(column: "withdrawalId", .text)
             }
         }
+
+        migrator.registerMigration("v3_blockchain_sync") { db in
+            try db.alter(table: "transactions") { t in
+                t.add(column: "blockchainTxHash", .text)
+                t.add(column: "source", .text)  // "manual" | "blockchain"
+            }
+            // TxHashの検索を高速化するインデックス
+            try db.create(
+                index: "transactions_on_blockchainTxHash",
+                on: "transactions",
+                columns: ["blockchainTxHash"],
+                ifNotExists: true
+            )
+        }
     }
 }
