@@ -22,7 +22,7 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "GRDB", package: "GRDB.swift"),
                 .product(name: "ScionCore", package: "scion-core"),
-                .product(name: "WalletConnectSign", package: "reown-swift"),
+                .product(name: "WalletConnect", package: "reown-swift"),
             ],
             path: "Sources/ScionCLI"
         ),
