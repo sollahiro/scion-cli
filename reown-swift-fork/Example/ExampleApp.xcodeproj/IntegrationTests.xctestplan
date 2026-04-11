@@ -1,0 +1,79 @@
+{
+  "configurations" : [
+    {
+      "id" : "BAABD63B-F7E2-4928-AD6F-325C999C17BB",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false,
+    "commandLineArgumentEntries" : [
+      {
+        "argument" : "isTesting"
+      }
+    ],
+    "environmentVariableEntries" : [
+      {
+        "key" : "RELAY_HOST",
+        "value" : "$(RELAY_HOST)"
+      },
+      {
+        "key" : "EXPLORER_HOST",
+        "value" : "$(EXPLORER_HOST)"
+      },
+      {
+        "key" : "GM_DAPP_HOST",
+        "value" : "$(GM_DAPP_HOST)"
+      },
+      {
+        "key" : "JS_CLIENT_API_HOST",
+        "value" : "$(JS_CLIENT_API_HOST)"
+      },
+      {
+        "key" : "GM_DAPP_PROJECT_SECRET",
+        "value" : "$(GM_DAPP_PROJECT_SECRET)"
+      },
+      {
+        "key" : "GM_DAPP_PROJECT_ID",
+        "value" : "$(GM_DAPP_PROJECT_ID)"
+      },
+      {
+        "key" : "CAST_HOST",
+        "value" : "$(CAST_HOST)"
+      },
+      {
+        "key" : "PROJECT_ID",
+        "value" : "$(PROJECT_ID)"
+      }
+    ],
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:ExampleApp.xcodeproj",
+      "identifier" : "A5E03DEC286464DB00888481",
+      "name" : "IntegrationTests"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "skippedTests" : [
+        "AuthTests",
+        "AuthTests\/testEIP1271RespondSuccess()",
+        "ChatTests",
+        "ENSResolverTests",
+        "HistoryTests",
+        "NotifyTests",
+        "SyncDerivationServiceTests",
+        "SyncTests"
+      ],
+      "target" : {
+        "containerPath" : "container:ExampleApp.xcodeproj",
+        "identifier" : "A5E03DEC286464DB00888481",
+        "name" : "IntegrationTests"
+      }
+    }
+  ],
+  "version" : 1
+}

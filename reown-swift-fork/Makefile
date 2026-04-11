@@ -1,0 +1,63 @@
+XCODE_USER_TEMPLATES_DIR=/Applications/Xcode.app/Contents/Developer/Library/Xcode/Templates/File\ Templates
+ 
+.PHONY: build_all install_templates install_env echo_ui_tests ui_tests unit_tests integration_tests relay_tests notify_tests smoke_tests x_platform_protocol_tests release .FORCE
+.FORCE:
+TEMPLATE_NAME=VIPER
+TEMPLATES_DIR=Example/Templates/VIPER
+
+EXISTS_FASTLANE = $(shell command -v fastlane 2> /dev/null)
+
+install_templates:
+	mkdir -p $(XCODE_USER_TEMPLATES_DIR)
+	rm -fR $(XCODE_USER_TEMPLATES_DIR)/$(TEMPLATE_NAME)
+	cp -R $(TEMPLATES_DIR) $(XCODE_USER_TEMPLATES_DIR)
+
+install_env:
+ifeq "${EXISTS_FASTLANE}" ""
+	@echo Installing fastlane
+	sudo gem install fastlane --no-document
+endif		
+	@echo "All dependencies was installed"
+
+build_all: .FORCE
+	set -o pipefail && env NSUnbufferedIO=YES \
+		xcodebuild \
+		-project "Example/ExampleApp.xcodeproj" \
+		-scheme "BuildAll" \
+		-destination "platform=iOS Simulator,name=iPhone 16" \
+		-derivedDataPath DerivedDataCache \
+		-clonedSourcePackagesDirPath ../SourcePackagesCache \
+		RELAY_HOST='$(RELAY_HOST)' \
+		PROJECT_ID='$(PROJECT_ID)' \
+		CAST_HOST='$(CAST_HOST)' \
+		EXPLORER_HOST='$(EXPLORER_HOST)' \
+		JS_CLIENT_API_HOST='$(JS_CLIENT_API_HOST)' \
+		build-for-testing \
+		| xcbeautify
+
+echo_ui_tests:
+	echo "EchoUITests disabled"
+
+ui_tests:
+	./run_tests.sh --scheme UITests --project Example/ExampleApp.xcodeproj
+
+unit_tests:
+	./run_tests.sh --scheme WalletConnect --project Example/ExampleApp.xcodeproj
+
+integration_tests:
+	./run_tests.sh --scheme IntegrationTests --testplan IntegrationTests --project Example/ExampleApp.xcodeproj
+
+relay_tests:
+	./run_tests.sh --scheme RelayIntegrationTests --project Example/ExampleApp.xcodeproj
+
+notify_tests:
+	./run_tests.sh --scheme NotifyTests --project Example/ExampleApp.xcodeproj
+
+smoke_tests:
+	./run_tests.sh --scheme IntegrationTests --testplan SmokeTests --project Example/ExampleApp.xcodeproj
+
+x_platform_protocol_tests:
+	./run_tests.sh --scheme IntegrationTests --testplan XPlatformProtocolTests --project Example/ExampleApp.xcodeproj
+
+release:
+	fastlane release_testflight username:$(APPLE_ID) relay_host:$(RELAY_HOST) project_id:$(PROJECT_ID) sentry_dsn:$(WALLETAPP_SENTRY_DSN) mixpanel_token:$(MIXPANEL_TOKEN) --env $(APP)

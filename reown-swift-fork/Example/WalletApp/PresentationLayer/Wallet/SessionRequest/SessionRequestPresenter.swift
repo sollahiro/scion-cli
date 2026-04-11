@@ -1,0 +1,118 @@
+import UIKit
+import Combine
+import Web3
+
+import ReownWalletKit
+
+final class SessionRequestPresenter: ObservableObject {
+    private let interactor: SessionRequestInteractor
+    var dismissAction: (() -> Void)?
+    private let importAccount: ImportAccount
+    
+    let sessionRequest: Request
+    let session: Session?
+    let validationStatus: VerifyContext.ValidationStatus?
+
+    var message: String {
+        guard let messages = try? sessionRequest.params.get([String].self) else {
+            return String(describing: sessionRequest.params.value)
+        }
+
+        // eth_signTypedData_v4: params are [address, typedDataJSON]
+        // Show the typed data (second param), not the address (first param)
+        if sessionRequest.method == "eth_signTypedData" || sessionRequest.method == "eth_signTypedData_v4" {
+            guard messages.count > 1 else {
+                return String(describing: sessionRequest.params.value)
+            }
+            let typedDataJSON = messages[1]
+            // Pretty print the JSON if possible
+            if let data = typedDataJSON.data(using: .utf8),
+               let jsonObject = try? JSONSerialization.jsonObject(with: data),
+               let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: .prettyPrinted),
+               let prettyString = String(data: prettyData, encoding: .utf8) {
+                return prettyString
+            }
+            return typedDataJSON
+        }
+
+        guard let firstMessage = messages.first else {
+            return String(describing: sessionRequest.params.value)
+        }
+
+        // Attempt to decode the message if it's hex-encoded
+        let decodedMessage = String(data: Data(hex: firstMessage), encoding: .utf8)
+
+        // Return the decoded message if available, else return the original message
+        return decodedMessage?.isEmpty == false ? decodedMessage! : firstMessage
+    }
+
+    
+    @Published var showError = false
+    @Published var errorMessage = "Error"
+    @Published var isActionLoading = false
+    @Published var isCancelLoading = false
+    
+    private var disposeBag = Set<AnyCancellable>()
+
+    init(
+        interactor: SessionRequestInteractor,
+        sessionRequest: Request,
+        importAccount: ImportAccount,
+        context: VerifyContext?
+    ) {
+        defer { setupInitialState() }
+        self.interactor = interactor
+        self.sessionRequest = sessionRequest
+        self.session = interactor.getSession(topic: sessionRequest.topic)
+        self.importAccount = importAccount
+        self.validationStatus = context?.validation
+    }
+
+    @MainActor
+    func onApprove() async throws {
+        do {
+            isActionLoading = true
+            _ = try await interactor.respondSessionRequest(sessionRequest: sessionRequest, importAccount: importAccount)
+            isActionLoading = false
+            dismiss()
+            WalletToast.present(message: "Request signed", type: .success)
+        } catch {
+            isActionLoading = false
+            errorMessage = error.localizedDescription
+            showError.toggle()
+        }
+    }
+
+    @MainActor
+    func onReject() async throws {
+        do {
+            isCancelLoading = true
+            try await interactor.respondError(sessionRequest: sessionRequest)
+            isCancelLoading = false
+            dismiss()
+        } catch {
+            isCancelLoading = false
+            errorMessage = error.localizedDescription
+            showError.toggle()
+        }
+    }
+    
+    func dismiss() {
+        dismissAction?()
+    }
+}
+
+// MARK: - Private functions
+private extension SessionRequestPresenter {
+    func setupInitialState() {
+        WalletKit.instance.requestExpirationPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] requestId in
+                guard let self = self else { return }
+                if requestId == sessionRequest.id {
+                    dismiss()
+                }
+            }.store(in: &disposeBag)
+    }
+}
+

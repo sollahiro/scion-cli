@@ -124,7 +124,8 @@ struct SyncCommand: AsyncParsableCommand {
         token: Token
     ) -> TransactionRecord {
         let amount = formatDecimalPrecise(tx.amount)
-        let priceInJPY = tx.priceInJPY
+        // JPYC は 1円ペッグ、USDC はレート不明（0で記録し後から更新想定）
+        let priceInJPY: Decimal = token == .jpyc ? 1 : 0
         let jpyAmount = formatDecimalPrecise(tx.amount * priceInJPY)
         let usdJpyRate = token == .usdc ? formatDecimalPrecise(priceInJPY) : nil
 
